@@ -5,11 +5,11 @@
 
 ---
 
-## 🚨 기존에 v3 SQL을 안 돌리셨다면 먼저 실행
+## 🚨 데이터베이스 설정
 
-이미 v3에서 `SUPABASE_V2_UPGRADE.sql`을 실행하셨다면 **추가 SQL 작업은 없습니다.**
-
-안 했다면 ZIP 안의 `SUPABASE_V2_UPGRADE.sql`을 Supabase SQL 편집기에서 한 번 실행해주세요.
+`supabase/schema.sql` 하나만 실행하면 됩니다. 여러 버전으로 흩어져 있던 SQL을
+전부 통합한 최종본입니다. 자세한 내용은 `supabase/README.md` 참고. 프로젝트
+전체 구조와 개발 규칙은 `CLAUDE.md`에 정리되어 있습니다.
 
 ---
 
