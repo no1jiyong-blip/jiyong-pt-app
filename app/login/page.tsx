@@ -110,27 +110,6 @@ export default function LoginPage() {
             {loading ? "로그인 중..." : "로그인"}
           </button>
         </div>
-
-        {/* Test accounts */}
-        <div className="pt-card">
-          <p className="text-center text-xs font-cond font-bold text-ink-2 tracking-wide-2 uppercase mb-5">
-            테스트 계정
-          </p>
-          <div className="grid grid-cols-2 gap-5">
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-xs text-ink-3 font-cond">회원</p>
-              <p className="font-cond font-bold text-ink-0 text-sm leading-none">
-                minsu / 1234
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <p className="text-xs text-ink-3 font-cond">관리자</p>
-              <p className="font-cond font-bold text-ink-0 text-sm leading-none">
-                admin / admin
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
