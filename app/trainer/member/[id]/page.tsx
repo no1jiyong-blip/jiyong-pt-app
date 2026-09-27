@@ -1032,7 +1032,7 @@ function BodyTab({
                   type="number"
                   step="0.1"
                   placeholder="0"
-                  value={(form as any)[key]}
+                  value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   className="pt-input text-center"
                   style={{ fontSize: 18 }}

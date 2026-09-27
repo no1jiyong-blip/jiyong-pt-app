@@ -13,7 +13,6 @@ import {
   calcOneRM,
   getAgeGroup,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
@@ -112,7 +111,7 @@ export function GrowthTab({
       const bench = benchmarks.find((b) => b.exercise_name === name);
       if (!bench) return;
       const { beginner_kg, intermediate_kg, advanced_kg, elite_kg } = bench;
-      let pct =
+      const pct =
         my >= elite_kg
           ? 99
           : my >= advanced_kg

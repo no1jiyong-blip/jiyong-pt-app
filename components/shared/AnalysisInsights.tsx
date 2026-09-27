@@ -83,17 +83,39 @@ export function AnalysisInsights({
   const prevMonthStart = prevMonthDate.toISOString().slice(0, 10);
   const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
 
-  // 이번 주 (월요일 기준)
+  // 이번 주 (월요일 기준) — Date 객체를 직접 mutate하지 않고, 시/분/초까지
+  // 그대로 유지한 채 날짜만 옮겨서 새로 생성 (UTC 변환 시 자정 경계 밀림 방지)
   const dow = now.getDay();
-  const thisWeekStart = new Date(now);
-  thisWeekStart.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+  const thisWeekStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - (dow === 0 ? 6 : dow - 1),
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds()
+  );
   const thisWeekStartStr = thisWeekStart.toISOString().slice(0, 10);
 
   // 저번 주
-  const prevWeekStart = new Date(thisWeekStart);
-  prevWeekStart.setDate(thisWeekStart.getDate() - 7);
-  const prevWeekEnd = new Date(thisWeekStart);
-  prevWeekEnd.setDate(thisWeekStart.getDate() - 1);
+  const prevWeekStart = new Date(
+    thisWeekStart.getFullYear(),
+    thisWeekStart.getMonth(),
+    thisWeekStart.getDate() - 7,
+    thisWeekStart.getHours(),
+    thisWeekStart.getMinutes(),
+    thisWeekStart.getSeconds(),
+    thisWeekStart.getMilliseconds()
+  );
+  const prevWeekEnd = new Date(
+    thisWeekStart.getFullYear(),
+    thisWeekStart.getMonth(),
+    thisWeekStart.getDate() - 1,
+    thisWeekStart.getHours(),
+    thisWeekStart.getMinutes(),
+    thisWeekStart.getSeconds(),
+    thisWeekStart.getMilliseconds()
+  );
   const prevWeekStartStr = prevWeekStart.toISOString().slice(0, 10);
   const prevWeekEndStr = prevWeekEnd.toISOString().slice(0, 10);
 
@@ -166,8 +188,16 @@ export function AnalysisInsights({
       .filter((s) => s.status === "completed")
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const fourWeeksAgo = new Date();
-    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+    const nowForGrowth = new Date();
+    const fourWeeksAgo = new Date(
+      nowForGrowth.getFullYear(),
+      nowForGrowth.getMonth(),
+      nowForGrowth.getDate() - 28,
+      nowForGrowth.getHours(),
+      nowForGrowth.getMinutes(),
+      nowForGrowth.getSeconds(),
+      nowForGrowth.getMilliseconds()
+    );
     const fwa = fourWeeksAgo.toISOString().slice(0, 10);
 
     const byEx = new Map<string, { date: string; orm: number }[]>();

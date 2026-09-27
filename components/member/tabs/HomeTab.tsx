@@ -37,13 +37,13 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
     const sorted = [...sessions].sort((a, b) =>
       b.date.localeCompare(a.date)
     );
-    for (const s of sorted) {
-      if (s.feedback?.trim())
-        return { text: s.feedback, type: "feedback" as const, date: s.date };
-      if (s.trainer_note?.trim())
-        return { text: s.trainer_note, type: "note" as const, date: s.date };
-    }
-    return null;
+    const withNote = sorted.find(
+      (s) => s.feedback?.trim() || s.trainer_note?.trim()
+    );
+    if (!withNote) return null;
+    return withNote.feedback?.trim()
+      ? { text: withNote.feedback, type: "feedback" as const, date: withNote.date }
+      : { text: withNote.trainer_note, type: "note" as const, date: withNote.date };
   }, [sessions]);
 
   return (

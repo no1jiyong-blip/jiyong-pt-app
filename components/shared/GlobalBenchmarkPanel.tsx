@@ -10,7 +10,6 @@ import {
   type ExerciseRecord,
   calcOneRM,
   getAgeGroup,
-  getAge,
 } from "@/lib/types";
 
 interface Props {
@@ -38,7 +37,6 @@ export function GlobalBenchmarkPanel({
   const [loading, setLoading] = useState(true);
 
   const ageGroup = getAgeGroup(member.birth_date);
-  const age = getAge(member.birth_date);
   const genderLabel =
     member.gender === "male"
       ? "Males"

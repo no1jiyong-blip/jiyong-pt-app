@@ -6,9 +6,7 @@ import {
   AreaChart,
   Area,
   XAxis,
-  YAxis,
   ResponsiveContainer,
-  Tooltip,
 } from "recharts";
 import type { Session, ExerciseRecord } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";

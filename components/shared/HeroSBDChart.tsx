@@ -114,7 +114,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender }:
         current: points[points.length - 1]?.orm ?? 0,
       };
     });
-  }, [sessions, recordsBySession, benchmarks]);
+  }, [sessions, recordsBySession, benchmarks, SBD]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -249,7 +249,7 @@ function SBDCard({ chart }: { chart: ChartItem }) {
             stroke={chart.color}
             strokeWidth={3}
             fill={`url(#${gradId})`}
-            dot={(props: any) => {
+            dot={(props: { cx?: number; cy?: number; index?: number }) => {
               const { cx, cy, index } = props;
               const pt = chart.rawPoints[index];
               if (!pt || !cx || !cy) return <></>;

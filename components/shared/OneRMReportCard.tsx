@@ -29,7 +29,6 @@ export function OneRMReportCard({
   glow,
   sessions,
   recordsBySession,
-  startDate,
 }: Props) {
   const { latest, previous, first, allPRs, totalGrowthKg, totalGrowthPct } =
     useMemo(() => {

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -12,7 +11,6 @@ import {
   ReferenceLine,
   Line,
   ComposedChart,
-  ReferenceDot,
 } from "recharts";
 import { Trophy, Target } from "lucide-react";
 import {
@@ -218,15 +216,6 @@ function SingleExerciseChart({
   const firstPoint = chart.rawPoints[0];
   const totalGrowth = lastPoint.orm - firstPoint.orm;
   const prCount = chart.rawPoints.filter((p) => p.isPR).length;
-
-  // PR 노드 좌표
-  const prPoints = chart.data
-    .map((d, i) => ({ ...d, idx: i }))
-    .filter((d, i) => {
-      // chart.data에는 projection 포함, 실제 데이터만 매칭
-      const pt = chart.rawPoints[i];
-      return pt && pt.isPR;
-    });
 
   // gradient ID 충돌 방지
   const gradId = `grad-${chart.exercise.replace(/\s/g, "")}`;

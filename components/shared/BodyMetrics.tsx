@@ -466,7 +466,7 @@ function MetricCard({
   expandable?: boolean;
   isExpanded?: boolean;
   onToggle?: () => void;
-  historyData?: { date: string; [key: string]: any }[];
+  historyData?: { date: string; [key: string]: string | number }[];
   historyKey?: string;
 }) {
   const delta =
@@ -680,7 +680,7 @@ function BodyShapeMap({
 
 /* 격차 분석 (중첩 막대) */
 function GapAnalysis({
-  grade, gender, ageGroup, currentSMM, currentBFPct, currentWeight,
+  grade, gender, ageGroup, currentSMM, currentBFPct,
 }: {
   grade: ACSMGrade;
   gender: "male" | "female";
@@ -714,7 +714,6 @@ function GapAnalysis({
 
   // 칼로리 계산
   const calDeficit = Math.round(bfDelta * 7700 / 120); // 체지방 1% ≈ 체중의 1% ≈ 칼로리
-  const proteinTarget = Math.round(currentWeight * (gender === "male" ? 1.8 : 1.6));
 
   return (
     <div className="flex flex-col gap-4">
@@ -851,7 +850,7 @@ function GoalGauge({
 
 /* ACSM 액션 가이드 */
 function ACSMActionGuide({
-  grade, gender, needMuscleKg, needFatPct, currentWeight,
+  gender, needMuscleKg, needFatPct, currentWeight,
 }: {
   grade: ACSMGrade;
   gender: "male" | "female";

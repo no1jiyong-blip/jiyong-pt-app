@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Award } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
-  ALL_EXERCISES,
   EXERCISE_GROUPS,
   type ExerciseGroupKey,
   EXERCISE_GROUP_LABELS,

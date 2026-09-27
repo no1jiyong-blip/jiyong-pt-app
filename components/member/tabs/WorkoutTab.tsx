@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Plus, X, Copy, Trophy, Save, Loader2,
+  Plus, X, Copy, Trophy, Loader2,
   ChevronDown, ChevronUp, Play, Pause, RotateCcw, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import {
   ALL_EXERCISES, type PersonalLog, type Session,
   type ExerciseRecord, type Member, calcOneRM,
 } from "@/lib/types";
-import { formatShortKoreanDate, getTodayISO } from "@/lib/utils";
+import { getTodayISO } from "@/lib/utils";
 import { Confetti } from "@/components/shared/Confetti";
 import { TabHeader } from "@/components/member/TabHeader";
 

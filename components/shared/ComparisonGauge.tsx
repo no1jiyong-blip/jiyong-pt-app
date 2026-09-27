@@ -41,7 +41,6 @@ const COLOR_BY_EX: Record<string, string> = {
 };
 
 export function ComparisonGauge({
-  member,
   sessions,
   recordsBySession,
   benchmarks,

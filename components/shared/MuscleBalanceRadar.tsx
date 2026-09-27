@@ -29,7 +29,6 @@ export function MuscleBalanceRadar({
     // 상체 1RM 평균 (케이블로우, 랫풀다운, 체스트프레스, 숄더프레스)
     const upperEx = EXERCISE_GROUPS.upper;
     const lowerEx = EXERCISE_GROUPS.lower;
-    const big3 = EXERCISE_GROUPS.big3;
 
     const byEx = new Map<string, number>();
     completed.forEach((s) => {

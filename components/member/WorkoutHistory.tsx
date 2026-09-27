@@ -18,9 +18,9 @@ export function WorkoutHistory({
 }: Props) {
   const [filter, setFilter] = useState<Filter>("week");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   const filtered = useMemo(() => {
-    const now = Date.now();
     const limits: Record<Filter, number> = {
       week: 7 * 86400000,
       month: 30 * 86400000,
@@ -34,7 +34,7 @@ export function WorkoutHistory({
         const t = new Date(s.date).getTime();
         return Math.abs(now - t) <= limit;
       });
-  }, [sessions, filter]);
+  }, [sessions, filter, now]);
 
   return (
     <section className="px-6 flex flex-col gap-5">
