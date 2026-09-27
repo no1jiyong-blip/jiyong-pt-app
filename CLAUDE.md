@@ -29,13 +29,18 @@ components/
 └── ui/                      # shadcn 스타일 기본 UI 프리미티브
 
 lib/
-├── supabase.ts               # Supabase 클라이언트 (anon key)
-├── auth.ts                   # 로그인/세션 관리 (localStorage)
+├── supabase.ts               # Supabase 클라이언트 (anon key, 클라이언트 전용)
+├── supabase-admin.ts         # service role 키 클라이언트 — 서버 전용, 절대 브라우저로 안 나감
+├── auth.ts                   # Supabase Auth 기반 로그인/세션 관리
 ├── types.ts                  # 모든 TypeScript 인터페이스 + 비즈니스 로직
 └── utils.ts
 
+app/api/auth/
+└── create-member/route.ts    # 트레이너가 회원 추가 시 Supabase Auth 계정도 함께 생성 (서버 전용)
+
 supabase/
 ├── schema.sql                # ⭐ 최종 통합 스키마 — 이 파일만 실행하면 됨
+├── rls-policies.sql          # RLS 정책 (트레이너 전체 접근 / 회원 본인 데이터만)
 ├── README.md                 # 실행 방법
 └── legacy/                   # 예전 SUPABASE_FINAL/V2~V5/DUMMY SQL (기록용, 실행 X)
 ```
@@ -45,25 +50,41 @@ supabase/
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...    # 서버 전용! NEXT_PUBLIC_ 접두사 절대 붙이지 말 것
 ```
 
-Vercel에 배포할 때도 동일한 값을 Environment Variables에 등록해야 합니다.
+Vercel에 배포할 때도 동일한 값 3개를 Environment Variables에 등록해야 합니다
+(service role 키는 Supabase 대시보드 → Settings → API Keys →
+"Legacy anon, service_role API keys" 탭에서 확인 가능).
 
-## 데이터베이스
+## 데이터베이스 & 인증
 
 9개 테이블: `users`, `members`, `sessions`, `exercise_records`, `homework`,
 `personal_logs`, `benchmark_data`, `session_quality`, `body_measurements`.
 스키마 변경이 필요하면 `supabase/schema.sql`을 직접 수정하고, 실행 방법은
-`supabase/README.md` 참고. 모든 테이블 RLS는 비활성화되어 있고 클라이언트는
-anon key로 직접 접근합니다 (트레이너/회원 인증은 `users` 테이블 대조 방식이며
-비밀번호가 평문 저장됩니다 — 실제 서비스로 키우려면 Supabase Auth로 전환하는
-게 우선순위 높은 개선 과제입니다).
+`supabase/README.md` 참고.
+
+**인증은 Supabase Auth 기반**입니다 (2026-09 전환 완료). `username`은 실제
+이메일이 아니라서 `{username}@ptcoachpro.internal` 형태의 가짜 이메일로
+Supabase Auth 계정을 만듭니다. `users` 테이블의 `id`는 Supabase Auth의
+`auth.users.id`와 동일한 값 — 즉 이 둘은 1:1로 연결되어 있습니다.
+`users.password` 컬럼은 더 이상 쓰지 않음 (nullable로 남겨둠, 실제 비밀번호는
+Supabase Auth가 관리).
+
+- 로그인/세션: `lib/auth.ts` (`login`, `getCurrentUser`, `logout` 전부 비동기)
+- 회원 추가 시 Auth 계정 생성: 클라이언트에서 직접 안 하고
+  `app/api/auth/create-member` API route를 통해서만 처리 (service role
+  키가 필요한 작업이라 서버에서만 실행)
+- **RLS 활성화됨** (`supabase/rls-policies.sql`): 트레이너는 전체 테이블
+  접근 가능, 회원은 본인 `member_id`에 연결된 데이터만 조회 가능. 새 테이블을
+  추가하거나 회원이 접근해야 하는 새 데이터가 생기면 이 파일에 정책을
+  추가해야 함 — 안 하면 기본적으로 전부 차단됩니다.
 
 ## 테스트 계정
 
 | 역할 | 아이디 | 비밀번호 |
 |------|--------|----------|
-| 트레이너 | `admin` | `admin` (최초 로그인 후 변경 권장) |
+| 트레이너 | `admin` | (트레이너 본인만 아는 값으로 변경됨 — 이 문서엔 기록하지 않음) |
 
 ## 디자인 시스템
 
