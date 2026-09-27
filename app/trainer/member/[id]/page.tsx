@@ -110,9 +110,10 @@ export default function TrainerMemberDetailPage({
   }, [id]);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user || user.role !== "trainer") { router.replace("/login"); return; }
-    loadData().finally(() => setLoading(false));
+    getCurrentUser().then((user) => {
+      if (!user || user.role !== "trainer") { router.replace("/login"); return; }
+      loadData().finally(() => setLoading(false));
+    });
   }, [router, loadData]);
 
   if (loading) {

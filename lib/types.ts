@@ -5,7 +5,6 @@
 export interface User {
   id: string;
   username: string;
-  password: string;
   role: "trainer" | "member";
   member_id: string | null;
   created_at: string;

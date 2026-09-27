@@ -40,16 +40,17 @@ export default function TrainerDashboard() {
   }, []);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (user.role !== "trainer") {
-      router.replace("/member");
-      return;
-    }
-    loadData().finally(() => setLoading(false));
+    getCurrentUser().then((user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+      if (user.role !== "trainer") {
+        router.replace("/member");
+        return;
+      }
+      loadData().finally(() => setLoading(false));
+    });
   }, [router, loadData]);
 
   const todaysSessions = useMemo(
@@ -60,8 +61,8 @@ export default function TrainerDashboard() {
     [sessions, selectedDate]
   );
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 
@@ -396,46 +397,40 @@ function AddMemberModal({
     setSaving(true);
     setError("");
 
-    const { data: existing } = await supabase
-      .from("users")
-      .select("id")
-      .eq("username", username.trim())
-      .maybeSingle();
-    if (existing) {
-      setError("이미 사용 중인 아이디입니다");
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) {
+      setError("세션이 만료되었습니다. 다시 로그인해주세요");
       setSaving(false);
       return;
     }
 
-    const { data: member, error: mErr } = await supabase
-      .from("members")
-      .insert({
+    const res = await fetch("/api/auth/create-member", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
         name: name.trim(),
-        phone: phone.trim() || null,
-        goal: goal.trim() || null,
-        start_date: startDate,
-        session_start_date: startDate,
-        total_sessions: totalSessions,
-        used_sessions: 0,
-        notes: notes.trim() || null,
-        gender: gender || null,
-        birth_date: birthDate || null,
-      })
-      .select()
-      .single();
+        phone: phone.trim(),
+        goal: goal.trim(),
+        startDate,
+        totalSessions,
+        notes: notes.trim(),
+        gender,
+        birthDate,
+        username: username.trim(),
+        password: password.trim(),
+      }),
+    });
+    const result = await res.json();
 
-    if (mErr || !member) {
-      setError("회원 등록 실패");
+    if (!res.ok) {
+      setError(result.error ?? "회원 등록 실패");
       setSaving(false);
       return;
     }
-
-    await supabase.from("users").insert({
-      username: username.trim(),
-      password: password.trim(),
-      role: "member",
-      member_id: member.id,
-    });
 
     setSaving(false);
     onSaved();

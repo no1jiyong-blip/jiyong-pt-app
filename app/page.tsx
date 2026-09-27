@@ -8,14 +8,15 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
-      router.replace("/login");
-    } else if (user.role === "trainer") {
-      router.replace("/trainer");
-    } else {
-      router.replace("/member");
-    }
+    getCurrentUser().then((user) => {
+      if (!user) {
+        router.replace("/login");
+      } else if (user.role === "trainer") {
+        router.replace("/trainer");
+      } else {
+        router.replace("/member");
+      }
+    });
   }, [router]);
 
   return (

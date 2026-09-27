@@ -17,3 +17,4 @@ node_modules
 
 # Claude Code local session state (not shared)
 .claude/settings.local.json
+tsconfig.tsbuildinfo

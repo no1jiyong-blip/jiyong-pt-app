@@ -251,7 +251,7 @@ function SBDCard({ chart }: { chart: ChartItem }) {
             fill={`url(#${gradId})`}
             dot={(props: { cx?: number; cy?: number; index?: number }) => {
               const { cx, cy, index } = props;
-              const pt = chart.rawPoints[index];
+              const pt = index !== undefined ? chart.rawPoints[index] : undefined;
               if (!pt || !cx || !cy) return <></>;
               return (
                 <circle

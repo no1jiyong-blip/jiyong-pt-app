@@ -81,16 +81,17 @@ export default function MemberDashboard() {
   }, []);
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (user.role !== "member" || !user.member_id) {
-      router.replace("/trainer");
-      return;
-    }
-    loadData(user.member_id).finally(() => setLoading(false));
+    getCurrentUser().then((user) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+      if (user.role !== "member" || !user.member_id) {
+        router.replace("/trainer");
+        return;
+      }
+      loadData(user.member_id).finally(() => setLoading(false));
+    });
   }, [router, loadData]);
 
   // Scroll to top when tab changes

@@ -16,10 +16,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-      router.replace(user.role === "trainer" ? "/trainer" : "/member");
-    }
+    getCurrentUser().then((user) => {
+      if (user) {
+        router.replace(user.role === "trainer" ? "/trainer" : "/member");
+      }
+    });
   }, [router]);
 
   const handleLogin = async () => {
