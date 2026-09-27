@@ -40,11 +40,12 @@ alter table members disable row level security;
 create table if not exists users (
   id          uuid primary key default gen_random_uuid(),
   username    text not null unique,
-  password    text not null,
+  password    text, -- 더 이상 안 씀 (인증은 Supabase Auth가 담당, users/README.md 참고)
   role        text not null check (role in ('trainer', 'member')),
   member_id   uuid references members(id) on delete cascade,
   created_at  timestamptz default now()
 );
+alter table users alter column password drop not null;
 alter table users disable row level security;
 
 -- ─── 3. sessions : PT 수업 일정/기록 ───────────────────────────
@@ -223,12 +224,14 @@ insert into benchmark_data (gender, age_group, exercise_name, beginner_kg, inter
 on conflict (gender, age_group, exercise_name) do nothing;
 
 -- ════════════════════════════════════════════════════════════════
--- 11. 트레이너 최초 로그인 계정 부트스트랩
---     (더미 데이터 아님 — 이게 없으면 아무도 로그인할 수 없습니다.
---      최초 실행 후 앱에 로그인해서 반드시 비밀번호를 변경하세요)
+-- 11. 트레이너 프로필 행 부트스트랩
+--     (더미 데이터 아님. 단, 이것만으로는 로그인이 안 됩니다 —
+--      Supabase Auth 쪽에 admin@ptcoachpro.internal 계정을 만들고
+--      이 행의 id를 그 계정 id로 연결해야 함. supabase/README.md의
+--      "인증 설정" 섹션 참고)
 -- ════════════════════════════════════════════════════════════════
-insert into users (username, password, role)
-values ('admin', 'admin', 'trainer')
+insert into users (username, role)
+values ('admin', 'trainer')
 on conflict (username) do nothing;
 
 -- ─── 12. 검증 ──────────────────────────────────────────────────
