@@ -64,53 +64,60 @@
   --f-body: "Barlow", -apple-system, system-ui, sans-serif;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-}
+/* Tailwind v4는 CSS 레이어(@layer)로 우선순위를 관리합니다. 이 리셋을
+   @layer base에 안 넣으면 "레이어 없는 일반 CSS"가 되어, 명시도와 무관하게
+   항상 utilities 레이어(p-5, px-6, mt-8 같은 Tailwind 클래스들)보다 우선
+   적용되어 버립니다 — 그래서 코드 곳곳의 Tailwind 여백 클래스가 전부
+   조용히 무시되고 있었음. @layer base로 감싸서 올바른 우선순위로 복구. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-html, body {
-  background-color: #000;
-  color: #fff;
-  min-height: 100vh;
-  font-family: var(--f-body);
-  font-weight: 500;
-  -webkit-font-smoothing: antialiased;
-  line-height: 1.6;
-}
+  html, body {
+    background-color: #000;
+    color: #fff;
+    min-height: 100vh;
+    font-family: var(--f-body);
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--f-display);
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  color: #fff;
-}
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--f-display);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    color: #fff;
+  }
 
-input, textarea, select, button {
-  font-family: inherit;
-  outline: none;
-  color: inherit;
-}
+  input, textarea, select, button {
+    font-family: inherit;
+    outline: none;
+    color: inherit;
+  }
 
-button {
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: inherit;
-}
+  button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+  }
 
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: var(--pt-2); }
-::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 2px; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--pt-2); }
+  ::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 2px; }
+}
 
 
 /* ════════════════════════════════════════════════════════════════
@@ -573,9 +580,11 @@ input[type="number"]::-webkit-outer-spin-button {
   padding-bottom: max(env(safe-area-inset-bottom), 12px);
 }
 
-/* Tab content padding-bottom (clear bottom nav) */
+/* Tab content padding-bottom (clear bottom nav)
+   nav 실제 높이 ≈ py-3(24) + 아이콘 48 + gap 6 + 라벨 12 ≈ 90px,
+   거기에 안전영역 패딩까지 더해지므로 96px로는 부족해서 겹쳤음 */
 .with-bottom-nav {
-  padding-bottom: 96px; /* nav 64 + breathing 32 */
+  padding-bottom: calc(112px + env(safe-area-inset-bottom));
 }
 
 
