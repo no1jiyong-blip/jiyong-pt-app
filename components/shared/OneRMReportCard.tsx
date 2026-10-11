@@ -13,6 +13,8 @@ interface Props {
   recordsBySession: Record<string, ExerciseRecord[]>;
   /** 등록 첫 세션 기준으로 총 성장 계산 */
   startDate?: string | null;
+  /** true면 바깥 pt-card 래퍼 없이 내용만 렌더링 (다른 카드 안에 중첩할 때) */
+  bare?: boolean;
 }
 
 interface PRPoint {
@@ -29,6 +31,7 @@ export function OneRMReportCard({
   glow,
   sessions,
   recordsBySession,
+  bare = false,
 }: Props) {
   const { latest, previous, first, allPRs, totalGrowthKg, totalGrowthPct } =
     useMemo(() => {
@@ -105,43 +108,49 @@ export function OneRMReportCard({
 
   return (
     <div
-      className="pt-card flex flex-col gap-5 anim-fade-slide"
-      style={{
-        padding: 22,
-        background: `linear-gradient(160deg, ${color}10 0%, rgba(20,20,20,0.88) 65%)`,
-        borderColor: `${color}35`,
-      }}
+      className={bare ? "flex flex-col gap-5" : "pt-card flex flex-col gap-5 anim-fade-slide"}
+      style={
+        bare
+          ? undefined
+          : {
+              padding: 22,
+              background: `linear-gradient(160deg, ${color}10 0%, rgba(20,20,20,0.88) 65%)`,
+              borderColor: `${color}35`,
+            }
+      }
     >
-      {/* 헤더 */}
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span
-            className="w-3 h-3 rounded-full shrink-0"
-            style={{
-              background: color,
-              boxShadow: `0 0 10px ${glow}`,
-            }}
-          />
-          <p
-            className="font-cond font-bold uppercase tracking-wider leading-none"
-            style={{ color, fontSize: 13 }}
-          >
-            {exerciseName}
-          </p>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          {prevChangePct !== null && (
+      {/* 헤더 (bare일 때는 상위 카드가 이미 종목명/색상을 표시하므로 생략) */}
+      {!bare && (
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center gap-3">
             <span
-              className="flex items-center gap-1 text-[11px] font-cond font-bold leading-none"
-              style={{ color: isUp ? color : "var(--danger)" }}
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{
+                background: color,
+                boxShadow: `0 0 10px ${glow}`,
+              }}
+            />
+            <p
+              className="font-cond font-bold uppercase tracking-wider leading-none"
+              style={{ color, fontSize: 13 }}
             >
-              {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-              {isUp ? "+" : ""}
-              {prevChangePct}%
-            </span>
-          )}
+              {exerciseName}
+            </p>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            {prevChangePct !== null && (
+              <span
+                className="flex items-center gap-1 text-[11px] font-cond font-bold leading-none"
+                style={{ color: isUp ? color : "var(--danger)" }}
+              >
+                {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                {isUp ? "+" : ""}
+                {prevChangePct}%
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 현재 1RM 대형 표시 */}
       <div className="flex flex-col gap-2">

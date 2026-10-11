@@ -21,6 +21,8 @@ interface Props {
   recordsBySession: Record<string, ExerciseRecord[]>;
   benchmarks: BenchmarkData[];
   gender?: "male" | "female" | null;
+  /** 지정하면 이 종목 차트 하나만 렌더링 (헤더 없이) — GrowthTab 통합 히어로 카드용 */
+  only?: string;
 }
 
 const MALE_SBD = [
@@ -34,7 +36,7 @@ const FEMALE_SBD = [
   { name: "숄더프레스", color: "#ff8c00", glow: "rgba(255,140,0,0.5)" },
 ] as const;
 
-export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender }: Props) {
+export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, only }: Props) {
   const SBD = gender === "female" ? FEMALE_SBD : MALE_SBD;
   const charts = useMemo(() => {
     const completed = sessions
@@ -116,6 +118,20 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender }:
     });
   }, [sessions, recordsBySession, benchmarks, SBD]);
 
+  const visible = only ? charts.filter((c) => c.name === only) : charts;
+
+  if (only) {
+    const c = visible[0];
+    if (!c || c.rawPoints.length === 0) {
+      return (
+        <div className="pt-card text-center py-8">
+          <p className="text-ink-3 font-cond text-sm">완료된 운동 기록이 없습니다</p>
+        </div>
+      );
+    }
+    return <SBDCard chart={c} bare />;
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <div className="flex items-end justify-between gap-3">
@@ -157,45 +173,39 @@ interface ChartItem {
   current: number;
 }
 
-function SBDCard({ chart }: { chart: ChartItem }) {
+function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) {
   const gradId = `sbd-${chart.name}`;
 
-  return (
-    <div
-      className="pt-card flex flex-col gap-4"
-      style={{
-        padding: 22,
-        background: `linear-gradient(160deg, ${chart.color}12 0%, rgba(20,20,20,0.85) 60%)`,
-        borderColor: `${chart.color}30`,
-      }}
-    >
-      {/* 헤더 */}
-      <div className="flex items-baseline justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span
-            className="w-3 h-3 rounded-full shrink-0"
-            style={{ background: chart.color, boxShadow: `0 0 10px ${chart.glow}` }}
-          />
-          <p
-            className="font-cond font-bold uppercase tracking-wider leading-none"
-            style={{ color: chart.color, fontSize: 13 }}
-          >
-            {chart.name}
-          </p>
+  const body = (
+    <>
+      {!bare && (
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ background: chart.color, boxShadow: `0 0 10px ${chart.glow}` }}
+            />
+            <p
+              className="font-cond font-bold uppercase tracking-wider leading-none"
+              style={{ color: chart.color, fontSize: 13 }}
+            >
+              {chart.name}
+            </p>
+          </div>
+          {chart.current > 0 && (
+            <p
+              className="font-display tabular-nums leading-none"
+              style={{ fontSize: 32, color: chart.color, textShadow: `0 0 16px ${chart.glow}` }}
+            >
+              {chart.current}
+              <span className="text-ink-3 text-xs ml-1.5">kg</span>
+            </p>
+          )}
         </div>
-        {chart.current > 0 && (
-          <p
-            className="font-display tabular-nums leading-none"
-            style={{ fontSize: 32, color: chart.color, textShadow: `0 0 16px ${chart.glow}` }}
-          >
-            {chart.current}
-            <span className="text-ink-3 text-xs ml-1.5">kg</span>
-          </p>
-        )}
-      </div>
+      )}
 
       {/* 차트 */}
-      <ResponsiveContainer width="100%" height={180}>
+      <ResponsiveContainer width="100%" height={bare ? 220 : 180}>
         <ComposedChart data={chart.data} margin={{ top: 12, right: 8, left: -14, bottom: 0 }}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -317,6 +327,21 @@ function SBDCard({ chart }: { chart: ChartItem }) {
           </span>
         )}
       </div>
+    </>
+  );
+
+  if (bare) return <div className="flex flex-col gap-4">{body}</div>;
+
+  return (
+    <div
+      className="pt-card flex flex-col gap-4"
+      style={{
+        padding: 22,
+        background: `linear-gradient(160deg, ${chart.color}12 0%, rgba(20,20,20,0.85) 60%)`,
+        borderColor: `${chart.color}30`,
+      }}
+    >
+      {body}
     </div>
   );
 }

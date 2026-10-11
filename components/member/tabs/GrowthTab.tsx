@@ -57,6 +57,7 @@ export function GrowthTab({
 
   const ageGroup = getAgeGroup(member.birth_date);
   const sbdConfig = member.gender === "female" ? FEMALE_SBD : MALE_SBD;
+  const [selectedEx, setSelectedEx] = useState(sbdConfig[0].name);
 
   /* 데이터 로드 */
   useEffect(() => {
@@ -134,8 +135,20 @@ export function GrowthTab({
       percentiles.length > 0
         ? Math.round(percentiles.reduce((a, b) => a + b, 0) / percentiles.length)
         : 0;
-    return { avg, topPct: Math.max(1, 100 - avg), valid: percentiles.length > 0 };
+    return { avg, topPct: Math.max(1, 100 - avg), valid: percentiles.length > 0, myMax };
   }, [sessions, recordsBySession, benchmarks, sbdConfig]);
+
+  /* 선택된 종목의 등급 (ACSM 벤치마크 기준) */
+  const selectedLevel = useMemo(() => {
+    const current = overall.myMax.get(selectedEx) ?? 0;
+    const bench = benchmarks.find((b) => b.exercise_name === selectedEx);
+    if (!bench || current <= 0) return null;
+    if (current >= bench.elite_kg) return "ELITE";
+    if (current >= bench.advanced_kg) return "ADVANCED";
+    if (current >= bench.intermediate_kg) return "INTERMEDIATE";
+    if (current >= bench.beginner_kg) return "BEGINNER";
+    return "NOVICE";
+  }, [overall.myMax, benchmarks, selectedEx]);
 
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2">
@@ -175,15 +188,12 @@ export function GrowthTab({
             />
           </div>
 
-          {/* ② 성별 맞춤 1RM 리포트 카드 */}
+          {/* ② 3대 운동 — 종목 선택 + 통합 히어로 카드 */}
           <section className="px-5 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <h3
-                className="font-display text-ink-0 leading-none tracking-wide uppercase"
-                style={{ fontSize: 20 }}
-              >
-                1RM REPORT
-              </h3>
+              <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
+                MAIN LIFTS
+              </span>
               <p className="text-[11px] font-cond text-ink-3 leading-none">
                 {member.gender === "female"
                   ? "스쿼트 · 데드리프트 · 숄더프레스"
@@ -191,30 +201,77 @@ export function GrowthTab({
               </p>
             </div>
 
-            {sbdConfig.map((ex) => (
-              <OneRMReportCard
-                key={ex.name}
-                exerciseName={ex.name}
-                color={ex.color}
-                glow={ex.glow}
-                sessions={sessions}
-                recordsBySession={recordsBySession}
-                startDate={member.session_start_date}
-              />
-            ))}
+            {/* 종목 선택 탭 */}
+            <div className="flex gap-2">
+              {sbdConfig.map((ex) => {
+                const active = selectedEx === ex.name;
+                return (
+                  <button
+                    key={ex.name}
+                    onClick={() => setSelectedEx(ex.name)}
+                    className="tap-haptic flex-1 py-2.5 rounded-xl font-cond font-bold text-sm transition-all"
+                    style={
+                      active
+                        ? { background: `${ex.color}1A`, border: `1px solid ${ex.color}`, color: ex.color }
+                        : { background: "var(--pt-2)", border: "1px solid var(--pt-5)", color: "var(--ink-3)" }
+                    }
+                  >
+                    {ex.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 통합 히어로 카드 */}
+            {(() => {
+              const cfg = sbdConfig.find((e) => e.name === selectedEx)!;
+              return (
+                <div
+                  className="pt-card flex flex-col gap-5"
+                  style={{
+                    padding: 22,
+                    background: `linear-gradient(160deg, ${cfg.color}10 0%, rgba(20,20,20,0.88) 65%)`,
+                    borderColor: `${cfg.color}30`,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }} />
+                      <span className="font-bold text-ink-0 text-base">{cfg.name}</span>
+                    </div>
+                    {selectedLevel && (
+                      <span
+                        className="font-mono-num font-bold px-2 py-0.5 rounded text-[11px] leading-none"
+                        style={{ background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}40` }}
+                      >
+                        {selectedLevel}
+                      </span>
+                    )}
+                  </div>
+
+                  <OneRMReportCard
+                    exerciseName={selectedEx}
+                    color={cfg.color}
+                    glow={cfg.glow}
+                    sessions={sessions}
+                    recordsBySession={recordsBySession}
+                    startDate={member.session_start_date}
+                    bare
+                  />
+
+                  <HeroSBDChart
+                    sessions={sessions}
+                    recordsBySession={recordsBySession}
+                    benchmarks={benchmarks}
+                    gender={member.gender}
+                    only={selectedEx}
+                  />
+                </div>
+              );
+            })()}
           </section>
 
-          {/* ③ Hero SBD 차트 (그래프) */}
-          <div className="px-5">
-            <HeroSBDChart
-              sessions={sessions}
-              recordsBySession={recordsBySession}
-              benchmarks={benchmarks}
-              gender={member.gender}
-            />
-          </div>
-
-          {/* ④ 보조 종목 캐러셀 */}
+          {/* ③ 보조 종목 그리드 */}
           <div className="px-5">
             <SupportCarousel
               sessions={sessions}
