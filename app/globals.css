@@ -62,6 +62,7 @@
   --f-display: "Bebas Neue", "Impact", sans-serif;
   --f-cond: "Barlow Condensed", "Arial Narrow", sans-serif;
   --f-body: "Barlow", -apple-system, system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
 }
 
 /* Tailwind v4는 CSS 레이어(@layer)로 우선순위를 관리합니다. 이 리셋을
@@ -184,6 +185,11 @@
 }
 .font-cond { font-family: var(--f-cond); }
 .font-body { font-family: var(--f-body); }
+.font-mono-num {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
 .tracking-brand { letter-spacing: 0.08em; }
 .tracking-wide-2 { letter-spacing: 0.18em; }
 .tracking-wide-3 { letter-spacing: 0.3em; }

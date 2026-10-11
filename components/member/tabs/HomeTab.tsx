@@ -97,9 +97,9 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
             진행률
           </p>
           <p
-            className="font-display tabular-nums leading-none"
+            className="font-mono-num font-extrabold leading-none"
             style={{
-              fontSize: 30,
+              fontSize: 26,
               color: "var(--volt)",
               textShadow: "0 0 16px var(--volt-glow-2)",
             }}
@@ -108,13 +108,16 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
           </p>
         </div>
 
-        <div className="progress-track">
+        <div
+          className="progress-track"
+          style={{ height: 8, background: "var(--pt-5)" }}
+        >
           <div
             className="progress-fill"
             style={{
               width: `${progressPct}%`,
               background: "var(--volt)",
-              boxShadow: "0 0 12px rgba(211,255,82,0.5)",
+              boxShadow: "0 0 10px rgba(211,255,82,0.5)",
             }}
           />
         </div>
@@ -122,10 +125,12 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
 
       {/* ─── 4. 캘린더 ─── */}
       <section className="flex flex-col gap-4">
-        <h2 className="section-title" style={{ fontSize: 20 }}>
-          <span className="section-bar"></span>
-          <Calendar size={16} className="text-volt" />
-          <span>캘린더</span>
+        <h2 className="flex items-center gap-2" style={{ fontSize: 18 }}>
+          <Calendar size={16} style={{ color: "var(--volt)" }} />
+          <span className="font-display text-ink-0 tracking-wider">
+            SCHEDULE
+          </span>
+          <span className="font-cond text-sm text-ink-3">캘린더</span>
         </h2>
         <SmartCalendar
           sessions={sessions}
@@ -133,10 +138,10 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
         />
       </section>
 
-      {/* ─── 5. 다음 수업 — 티켓형 카드 ─── */}
+      {/* ─── 5. 다음 수업 — 티켓형 카드 (글래스모피즘) ─── */}
       {nextSession && (
         <section
-          className="pt-card flex flex-col gap-4"
+          className="pt-card-glass flex flex-col gap-4"
           style={{ padding: 24 }}
         >
           <div className="flex items-center justify-between gap-3">
@@ -148,7 +153,7 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
             </div>
             {dDay !== null && (
               <span
-                className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none shrink-0"
+                className="font-mono-num font-bold px-2.5 py-1 rounded-full text-[10px] leading-none shrink-0"
                 style={{
                   background: "rgba(211,255,82,0.12)",
                   color: "var(--volt)",
@@ -161,7 +166,7 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <p className="font-bold text-xl text-ink-0 leading-tight">
+            <p className="font-mono-num font-bold text-xl text-ink-0 leading-tight">
               {formatKoreanDate(nextSession.date)}
               {nextSession.time && ` · ${nextSession.time}`}
             </p>
@@ -228,12 +233,11 @@ function CompactStat({
         {label}
       </p>
       <p
-        className="font-display tabular-nums leading-none"
+        className="font-mono-num font-extrabold leading-none"
         style={{
-          fontSize: accent ? 40 : 28,
+          fontSize: accent ? 36 : 26,
           color: numColor,
           textShadow: numShadow,
-          letterSpacing: "-0.02em",
         }}
       >
         {value}

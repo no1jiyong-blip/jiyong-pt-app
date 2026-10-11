@@ -51,7 +51,7 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
             <p className="text-[10px] font-cond text-ink-3 leading-none tracking-wide-2 uppercase">
               CALENDAR
             </p>
-            <h3 className="font-display text-xl text-ink-0 tracking-wider leading-none">
+            <h3 className="font-mono-num font-bold text-xl text-ink-0 leading-none">
               {year}.{pad(month + 1)}
             </h3>
           </div>
@@ -88,7 +88,7 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
                 key={iso}
                 onClick={() => setSelectedDate(iso)}
                 className={cn(
-                  "tap-haptic h-11 rounded-xl font-cond font-bold text-sm transition-all relative leading-none flex items-center justify-center",
+                  "tap-haptic h-11 rounded-xl font-mono-num font-bold text-sm transition-all relative leading-none flex items-center justify-center",
                   isToday ? "text-volt" : "text-ink-1"
                 )}
                 style={{
@@ -103,8 +103,8 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
                   <span
                     className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full"
                     style={{
-                      width: 4,
-                      height: 4,
+                      width: 6,
+                      height: 6,
                       background: "var(--volt)",
                       boxShadow: "0 0 6px var(--volt-glow-2)",
                     }}
