@@ -44,7 +44,18 @@ export default function LoginPage() {
       <div className="pt-container flex flex-col gap-12 max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center gap-7 pt-8">
-          <BrandLogo size={104} glow="strong" />
+          <div className="relative flex items-center justify-center">
+            <div
+              className="absolute rounded-full blur-3xl"
+              style={{
+                width: 192,
+                height: 192,
+                background: "var(--volt-glow-2)",
+              }}
+              aria-hidden
+            />
+            <BrandLogo size={104} glow="strong" className="relative" />
+          </div>
           <div className="flex flex-col items-center gap-3">
             <h1 className="font-display text-4xl tracking-wide-3 text-ink-0 leading-none">
               PT MEMBER
@@ -56,7 +67,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <div className="pt-card flex flex-col gap-6">
+        <div className="pt-card-glass flex flex-col gap-6">
           <div className="flex flex-col gap-2.5">
             <label className="text-xs font-cond font-bold text-ink-1 tracking-wide-2 uppercase">
               아이디
@@ -88,7 +99,8 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPw((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-1 p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-ink-1 hover:bg-pt-5 rounded-full p-1.5 transition-colors"
+                aria-label={showPw ? "비밀번호 숨기기" : "비밀번호 표시"}
               >
                 {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>

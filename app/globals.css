@@ -224,6 +224,20 @@
   .pt-card-hot { padding: 32px; }
 }
 
+/* 진짜 글래스모피즘 카드 — 반투명 + 블러. 로그인처럼 배경 위에 뜬
+   느낌을 강조하고 싶은 화면에서 .pt-card 대신 사용 */
+.pt-card-glass {
+  background: color-mix(in srgb, var(--pt-3) 70%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 28px;
+  padding: 28px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+@media (min-width: 480px) {
+  .pt-card-glass { padding: 32px; }
+}
+
 
 /* ════════════════════════════════════════════════════════════════
    SECTION TITLE
@@ -355,8 +369,20 @@
 .pt-input:focus {
   border-color: var(--volt);
   background-color: var(--pt-3);
+  box-shadow: 0 0 0 3px var(--volt-glow);
 }
 .pt-input::placeholder { color: var(--ink-3); }
+
+/* 브라우저 자동완성(아이디/비번)이 강제로 씌우는 연한 하늘색 배경 차단.
+   트랜지션 지연 트릭으로 배경색이 눈에 띄게 안 바뀌고 다크 테마 유지됨. */
+.pt-input:-webkit-autofill,
+.pt-input:-webkit-autofill:hover,
+.pt-input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px var(--pt-4) inset;
+  -webkit-text-fill-color: var(--ink-0);
+  caret-color: var(--ink-0);
+  transition: background-color 9999s ease-in-out 0s;
+}
 
 
 /* ════════════════════════════════════════════════════════════════
