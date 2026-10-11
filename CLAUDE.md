@@ -20,7 +20,7 @@ app/
 ├── member/page.tsx          # 회원 메인 (4탭: HOME/WORKOUT/GROWTH/MISSION)
 └── trainer/
     ├── page.tsx             # 트레이너 메인 (회원 목록 + 캘린더)
-    └── member/[id]/page.tsx # 트레이너 회원 관리 상세 (단일 스크롤)
+    └── member/[id]/page.tsx # 트레이너 회원 관리 상세 (4탭: 회원정보/운동일지/미션·소견/인바디)
 
 components/
 ├── member/                  # 회원 앱 4탭 + BottomNav, SmartCalendar 등
@@ -36,7 +36,8 @@ lib/
 └── utils.ts
 
 app/api/auth/
-└── create-member/route.ts    # 트레이너가 회원 추가 시 Supabase Auth 계정도 함께 생성 (서버 전용)
+├── create-member/route.ts         # 트레이너가 회원 추가 시 Supabase Auth 계정도 함께 생성 (서버 전용)
+└── reset-member-password/route.ts # 트레이너가 회원 비밀번호를 대신 재설정 (서버 전용, service role 필요)
 
 supabase/
 ├── schema.sql                # ⭐ 최종 통합 스키마 — 이 파일만 실행하면 됨
@@ -79,6 +80,12 @@ Supabase Auth가 관리).
   접근 가능, 회원은 본인 `member_id`에 연결된 데이터만 조회 가능. 새 테이블을
   추가하거나 회원이 접근해야 하는 새 데이터가 생기면 이 파일에 정책을
   추가해야 함 — 안 하면 기본적으로 전부 차단됩니다.
+- **비밀번호 변경/재설정**: 회원·트레이너 둘 다 각자 화면 헤더의 ⚙️ 아이콘으로
+  본인 비밀번호를 직접 바꿀 수 있음 (`lib/auth.ts`의 `changePassword`,
+  `components/shared/ChangePasswordModal.tsx`). 회원이 비밀번호를 잊으면
+  트레이너가 회원 상세 페이지("회원 정보" 탭)에서 대신 재설정 가능
+  (`app/api/auth/reset-member-password`). 더 이상 Supabase 대시보드에
+  직접 들어가서 비밀번호를 바꿔줄 필요 없음.
 
 ## 테스트 계정
 
@@ -121,9 +128,13 @@ Supabase Auth가 관리).
 개인 운동 기록 + 히스토리) · GROWTH(STRENGTH/BODY/ANALYSIS 서브탭) ·
 MISSION(트레이너 소견 + 숙제).
 
-**트레이너 페이지**: 탭 없이 단일 스크롤. 회원 정보 → 세션 차감/수정 → PT
-수업 추가/출석 처리 → 숙제 관리 → 운동 기록 피드 → STRENGTH DASHBOARD →
-트레이너 소견/미션 입력 → 인바디 입력 → ACSM 목표 갭.
+**트레이너 메인** (`/trainer`): 탭 없이 단일 스크롤. 캘린더 + 오늘 예정 수업 +
+전체 회원 목록.
+
+**트레이너 회원 상세** (`/trainer/member/[id]`): 4탭 구조 — 회원 정보(기본
+정보/세션 차감·수정/비밀번호 재설정) · 운동 일지(PT 수업 추가·출석 처리/숙제
+관리/운동 기록 피드/STRENGTH DASHBOARD) · 미션·소견(트레이너 소견/미션 입력) ·
+인바디(인바디 입력/ACSM 목표 갭).
 
 ## 주요 비즈니스 로직
 
