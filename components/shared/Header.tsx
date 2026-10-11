@@ -1,9 +1,11 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { LogOut, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { BrandLogo } from "@/components/shared/BrandLogo";
+import { ChangePasswordModal } from "@/components/shared/ChangePasswordModal";
 
 interface Props {
   greeting: string;
@@ -13,6 +15,7 @@ interface Props {
 
 export function PageHeader({ greeting, name, rightInfo }: Props) {
   const router = useRouter();
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const handleLogout = async () => {
     await logout();
     router.replace("/login");
@@ -39,6 +42,13 @@ export function PageHeader({ greeting, name, rightInfo }: Props) {
           </div>
         )}
         <button
+          onClick={() => setShowChangePassword(true)}
+          className="w-12 h-12 rounded-full flex items-center justify-center text-ink-2 hover:text-ink-0 hover:bg-pt-3 transition-colors"
+          aria-label="비밀번호 변경"
+        >
+          <Settings size={18} />
+        </button>
+        <button
           onClick={handleLogout}
           className="w-12 h-12 rounded-full flex items-center justify-center text-ink-2 hover:text-ink-0 hover:bg-pt-3 transition-colors"
           aria-label="로그아웃"
@@ -46,6 +56,10 @@ export function PageHeader({ greeting, name, rightInfo }: Props) {
           <LogOut size={18} />
         </button>
       </div>
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
+      )}
     </header>
   );
 }

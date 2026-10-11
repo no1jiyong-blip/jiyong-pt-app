@@ -53,3 +53,10 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function logout() {
   await supabase.auth.signOut();
 }
+
+export async function changePassword(
+  newPassword: string
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  return { error: error ? error.message : null };
+}

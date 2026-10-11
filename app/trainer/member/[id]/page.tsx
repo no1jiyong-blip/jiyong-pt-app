@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Trash2, Save, CheckCircle2,
   User, Dumbbell, Target, Activity, ChevronDown, ChevronUp,
-  Loader2, AlertTriangle, Zap
+  Loader2, AlertTriangle, Zap, KeyRound
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
@@ -18,6 +18,7 @@ import { formatShortKoreanDate, getTodayISO, getWeekStartISO } from "@/lib/utils
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { LiveRecordModal } from "@/components/trainer/LiveRecordModal";
+import { ResetMemberPasswordModal } from "@/components/trainer/ResetMemberPasswordModal";
 import { HeroSBDChart } from "@/components/shared/HeroSBDChart";
 import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
@@ -264,6 +265,7 @@ function HomeTab({
   const [savingSession, setSavingSession] = useState(false);
   const [deducting, setDeducting] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
 
   // member prop이 바뀌면 (onUpdate 후) local state 동기화
   useEffect(() => {
@@ -340,8 +342,25 @@ function HomeTab({
               <p className="text-xs text-ink-1 leading-relaxed">{member.notes}</p>
             </div>
           )}
+
+          <button
+            onClick={() => setShowResetPassword(true)}
+            className="btn-ghost"
+            style={{ minHeight: 48 }}
+          >
+            <KeyRound size={14} />
+            비밀번호 재설정
+          </button>
         </div>
       </section>
+
+      {showResetPassword && (
+        <ResetMemberPasswordModal
+          memberId={member.id}
+          memberName={member.name}
+          onClose={() => setShowResetPassword(false)}
+        />
+      )}
 
       {/* 세션 관리 */}
       <section className="flex flex-col gap-4">

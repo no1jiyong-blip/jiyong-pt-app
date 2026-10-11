@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Users, Plus, LogOut } from "lucide-react";
+import { Users, Plus, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, logout } from "@/lib/auth";
@@ -11,6 +11,7 @@ import { formatKoreanDate, getTodayISO } from "@/lib/utils";
 import { Calendar } from "@/components/trainer/Calendar";
 import { RosterCard } from "@/components/trainer/RosterCard";
 import { LiveRecordModal } from "@/components/trainer/LiveRecordModal";
+import { ChangePasswordModal } from "@/components/shared/ChangePasswordModal";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 
@@ -24,6 +25,7 @@ export default function TrainerDashboard() {
   const [liveMember, setLiveMember] = useState<Member | null>(null);
   const [showAddSession, setShowAddSession] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   const loadData = useCallback(async () => {
     const { data: m } = await supabase
@@ -97,6 +99,13 @@ export default function TrainerDashboard() {
               aria-label="새 회원 등록"
             >
               <Users size={18} strokeWidth={2.5} />
+            </button>
+            <button
+              onClick={() => setShowChangePassword(true)}
+              className="w-12 h-12 rounded-full flex items-center justify-center text-ink-2 hover:text-ink-0 hover:bg-pt-3 transition-colors"
+              aria-label="비밀번호 변경"
+            >
+              <Settings size={18} />
             </button>
             <button
               onClick={handleLogout}
@@ -239,6 +248,10 @@ export default function TrainerDashboard() {
           onClose={() => setShowAddMember(false)}
           onSaved={loadData}
         />
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
     </main>
   );
