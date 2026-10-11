@@ -234,7 +234,44 @@ insert into users (username, role)
 values ('admin', 'trainer')
 on conflict (username) do nothing;
 
--- ─── 12. 검증 ──────────────────────────────────────────────────
+-- ════════════════════════════════════════════════════════════════
+-- 12. FK CASCADE 보정
+--     "create table if not exists"는 이미 존재하는 테이블에는 영향을
+--     주지 않기 때문에, 이 파일에 on delete cascade를 나중에 추가해도
+--     예전에 이미 만들어진 운영 DB 테이블에는 반영되지 않았음.
+--     그 결과 회원을 삭제하려 하면 sessions 등에서 참조 중이라는
+--     FK 에러가 났음 (2026-10 발견). 아래에서 모든 관련 제약을
+--     명시적으로 cascade로 다시 걸어줌 — 여러 번 실행해도 안전함.
+-- ════════════════════════════════════════════════════════════════
+alter table users drop constraint if exists users_member_id_fkey;
+alter table users add constraint users_member_id_fkey
+  foreign key (member_id) references members(id) on delete cascade;
+
+alter table sessions drop constraint if exists sessions_member_id_fkey;
+alter table sessions add constraint sessions_member_id_fkey
+  foreign key (member_id) references members(id) on delete cascade;
+
+alter table exercise_records drop constraint if exists exercise_records_session_id_fkey;
+alter table exercise_records add constraint exercise_records_session_id_fkey
+  foreign key (session_id) references sessions(id) on delete cascade;
+
+alter table homework drop constraint if exists homework_member_id_fkey;
+alter table homework add constraint homework_member_id_fkey
+  foreign key (member_id) references members(id) on delete cascade;
+
+alter table personal_logs drop constraint if exists personal_logs_member_id_fkey;
+alter table personal_logs add constraint personal_logs_member_id_fkey
+  foreign key (member_id) references members(id) on delete cascade;
+
+alter table session_quality drop constraint if exists session_quality_session_id_fkey;
+alter table session_quality add constraint session_quality_session_id_fkey
+  foreign key (session_id) references sessions(id) on delete cascade;
+
+alter table body_measurements drop constraint if exists body_measurements_member_id_fkey;
+alter table body_measurements add constraint body_measurements_member_id_fkey
+  foreign key (member_id) references members(id) on delete cascade;
+
+-- ─── 13. 검증 ──────────────────────────────────────────────────
 select table_name
 from information_schema.tables
 where table_schema = 'public'
