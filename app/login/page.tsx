@@ -57,13 +57,10 @@ export default function LoginPage() {
             <BrandLogo size={104} glow="strong" className="relative" />
           </div>
           <div className="flex flex-col items-center gap-3">
-            <h1
-              className="font-display text-4xl text-ink-0 leading-none"
-              style={{ letterSpacing: "0.08em" }}
-            >
+            <h1 className="font-display text-4xl text-ink-0 leading-none">
               PT COACH
             </h1>
-            <p className="text-ink-2 font-cond text-sm tracking-wider">
+            <p className="text-ink-3 font-cond text-xs tracking-wider mt-1.5">
               퍼스널 트레이닝 코칭 &amp; 회원 관리 시스템
             </p>
           </div>
@@ -119,7 +116,7 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="btn-volt-outline w-full"
+            className="btn-volt w-full"
             style={{ height: 60, fontSize: 17 }}
           >
             {loading ? "로그인 중..." : "LOGIN"}

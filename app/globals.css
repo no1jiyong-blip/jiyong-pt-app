@@ -228,11 +228,12 @@
    느낌을 강조하고 싶은 화면에서 .pt-card 대신 사용 */
 .pt-card-glass {
   background: color-mix(in srgb, var(--pt-3) 70%, transparent);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 28px;
   padding: 28px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
 }
 @media (min-width: 480px) {
   .pt-card-glass { padding: 32px; }
@@ -288,13 +289,13 @@
   color: #000;
   border-radius: 14px;
   font-family: var(--f-cond);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.04em;
   font-size: 15px;
   padding: 14px 28px;
   min-height: 52px;
   transition: all 0.15s;
-  box-shadow: 0 4px 20px var(--volt-glow), inset 0 1px 0 rgba(255,255,255,0.25);
+  box-shadow: 0 10px 30px -5px var(--volt-glow-2), inset 0 1px 0 rgba(255,255,255,0.25);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -302,7 +303,7 @@
 }
 .btn-volt:hover {
   filter: brightness(1.05);
-  box-shadow: 0 6px 24px var(--volt-glow-2), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: 0 12px 34px -4px var(--volt-glow-2), inset 0 1px 0 rgba(255,255,255,0.3);
 }
 .btn-volt:active { transform: scale(0.97); }
 .btn-volt:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -384,18 +385,18 @@
   width: 100%;
   background-color: var(--pt-4);
   border: 1px solid var(--pt-6);
-  border-radius: 12px;
-  padding: 14px 18px;
+  border-radius: 16px;
+  padding: 16px 20px;
   color: var(--ink-0);
   font-family: var(--f-body);
   font-size: 15px;
-  transition: border-color 0.15s, background-color 0.15s;
-  min-height: 50px;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+  min-height: 56px;
 }
 .pt-input:focus {
   border-color: var(--volt);
   background-color: var(--pt-3);
-  box-shadow: 0 0 0 3px var(--volt-glow);
+  box-shadow: 0 0 0 3px var(--volt-glow-2);
 }
 .pt-input::placeholder { color: var(--ink-3); }
 
