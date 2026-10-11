@@ -37,23 +37,33 @@ export function PageHeader({ greeting, name, rightInfo }: Props) {
 
       <div className="flex items-center gap-2 shrink-0 mt-1">
         {rightInfo && (
-          <div className="px-4 py-2 rounded-full bg-pt-3 border border-pt-5 text-xs font-cond text-ink-2 leading-none whitespace-nowrap">
+          <div
+            className="px-3.5 py-2 rounded-full text-xs font-cond font-semibold text-ink-1 leading-none whitespace-nowrap"
+            style={{
+              background: "rgba(20,20,20,0.8)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+          >
             {rightInfo}
           </div>
         )}
         <button
           onClick={() => setShowChangePassword(true)}
-          className="w-12 h-12 rounded-full flex items-center justify-center text-ink-2 hover:text-ink-0 hover:bg-pt-3 transition-colors"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-ink-2 hover:text-ink-0 transition-colors"
+          style={{ background: "rgba(20,20,20,0.6)", border: "1px solid rgba(255,255,255,0.05)" }}
           aria-label="비밀번호 변경"
         >
-          <Settings size={18} />
+          <Settings size={16} />
         </button>
         <button
           onClick={handleLogout}
-          className="w-12 h-12 rounded-full flex items-center justify-center text-ink-2 hover:text-ink-0 hover:bg-pt-3 transition-colors"
+          className="w-10 h-10 rounded-xl flex items-center justify-center text-ink-2 hover:text-ink-0 transition-colors"
+          style={{ background: "rgba(20,20,20,0.6)", border: "1px solid rgba(255,255,255,0.05)" }}
           aria-label="로그아웃"
         >
-          <LogOut size={18} />
+          <LogOut size={16} />
         </button>
       </div>
 

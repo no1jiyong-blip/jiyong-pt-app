@@ -67,7 +67,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Card */}
-        <div className="pt-card-glass flex flex-col gap-6">
+        <div className="pt-card flex flex-col gap-6">
           <div className="flex flex-col gap-2.5">
             <label className="text-xs font-cond font-bold text-ink-1 tracking-wide-2 uppercase">
               아이디

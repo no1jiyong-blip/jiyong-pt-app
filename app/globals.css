@@ -230,22 +230,6 @@
   .pt-card-hot { padding: 32px; }
 }
 
-/* 진짜 글래스모피즘 카드 — 반투명 + 블러. 로그인처럼 배경 위에 뜬
-   느낌을 강조하고 싶은 화면에서 .pt-card 대신 사용 */
-.pt-card-glass {
-  background: color-mix(in srgb, var(--pt-3) 70%, transparent);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 28px;
-  padding: 28px;
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-}
-@media (min-width: 480px) {
-  .pt-card-glass { padding: 32px; }
-}
-
-
 /* ════════════════════════════════════════════════════════════════
    SECTION TITLE
    ════════════════════════════════════════════════════════════════ */
@@ -656,9 +640,13 @@
 .pt-card-xl,
 .pt-card-hot,
 .pt-card-xl-hot {
-  background: rgba(20, 20, 20, 0.78);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+.pt-card,
+.pt-card-xl {
+  border-color: rgba(255, 255, 255, 0.08);
 }
 .pt-card-hot,
 .pt-card-xl-hot {
@@ -682,19 +670,19 @@
   .pt-stat { padding: 20px 16px; }
 }
 
-/* 잔여 세션 카드 — Volt glow border (강조) */
+/* 잔여 세션 카드 — Volt glow border (강조, 은은하게) */
 .pt-stat-volt {
   background: linear-gradient(
       160deg,
-      rgba(211, 255, 82, 0.12) 0%,
+      rgba(211, 255, 82, 0.06) 0%,
       rgba(20, 20, 20, 0.85) 70%
     );
   backdrop-filter: blur(18px) saturate(180%);
   -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid var(--volt-glow-2);
+  border: 1px solid rgba(211, 255, 82, 0.3);
   border-radius: 20px;
   padding: 18px 14px;
-  box-shadow: 0 0 20px var(--volt-glow);
+  box-shadow: 0 0 14px rgba(211, 255, 82, 0.1);
 }
 @media (min-width: 380px) {
   .pt-stat-volt { padding: 22px 16px; }

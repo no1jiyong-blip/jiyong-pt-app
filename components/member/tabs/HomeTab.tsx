@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo } from "react";
-import { AlertTriangle, Calendar } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import type { Member, Session, ExerciseRecord } from "@/lib/types";
-import { formatKoreanDate, getTodayISO } from "@/lib/utils";
+import { getTodayISO } from "@/lib/utils";
 import { SmartCalendar } from "@/components/member/SmartCalendar";
 import { TabHeader } from "@/components/member/TabHeader";
+
+const MONTH_ABBR = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+];
+const DAY_NAME = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 
 interface Props {
   member: Member;
@@ -126,7 +132,15 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
       {/* ─── 4. 캘린더 ─── */}
       <section className="flex flex-col gap-4">
         <h2 className="flex items-center gap-2" style={{ fontSize: 18 }}>
-          <Calendar size={16} style={{ color: "var(--volt)" }} />
+          <span
+            className="rounded-full shrink-0"
+            style={{
+              width: 6,
+              height: 14,
+              background: "var(--volt)",
+              boxShadow: "0 0 8px var(--volt-glow-2)",
+            }}
+          />
           <span className="font-display text-ink-0 tracking-wider">
             SCHEDULE
           </span>
@@ -138,43 +152,51 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
         />
       </section>
 
-      {/* ─── 5. 다음 수업 — 티켓형 카드 (글래스모피즘) ─── */}
+      {/* ─── 5. 다음 수업 — 나이키 스포츠 패스 티켓 ─── */}
       {nextSession && (
-        <section
-          className="pt-card-glass flex flex-col gap-4"
-          style={{ padding: 24 }}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Calendar size={12} className="text-volt" />
-              <p className="text-[10px] text-volt font-cond font-bold tracking-wide-2 uppercase leading-none">
-                NEXT SESSION
+        <section className="pt-card flex items-center gap-4" style={{ padding: 20 }}>
+          {/* 날짜 타일 */}
+          <div
+            className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
+            style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
+          >
+            <span className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
+              {MONTH_ABBR[new Date(nextSession.date).getMonth()]}
+            </span>
+            <span className="font-mono-num font-extrabold text-2xl text-ink-0 leading-none">
+              {new Date(nextSession.date).getDate()}
+            </span>
+          </div>
+
+          {/* 세션 정보 */}
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            <p className="text-[11px] font-cond font-bold text-volt tracking-wider uppercase leading-none">
+              1:1 PERSONAL TRAINING
+            </p>
+            <p className="font-bold text-ink-0 text-base leading-snug">
+              {nextSession.time && `${nextSession.time} · `}
+              {DAY_NAME[new Date(nextSession.date).getDay()]}
+            </p>
+            {nextSession.session_number && (
+              <p className="text-xs text-ink-3 font-cond leading-none">
+                Session {nextSession.session_number}
               </p>
-            </div>
-            {dDay !== null && (
-              <span
-                className="font-mono-num font-bold px-2.5 py-1 rounded-full text-[10px] leading-none shrink-0"
-                style={{
-                  background: "rgba(211,255,82,0.12)",
-                  color: "var(--volt)",
-                  border: "1px solid var(--volt-glow-2)",
-                }}
-              >
-                {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
-              </span>
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <p className="font-mono-num font-bold text-xl text-ink-0 leading-tight">
-              {formatKoreanDate(nextSession.date)}
-              {nextSession.time && ` · ${nextSession.time}`}
-            </p>
-            <p className="text-sm text-ink-2 font-cond leading-none">
-              1:1 퍼스널 트레이닝
-              {nextSession.session_number && ` (Session ${nextSession.session_number})`}
-            </p>
-          </div>
+          {/* D-Day 뱃지 */}
+          {dDay !== null && (
+            <span
+              className="font-mono-num font-bold px-3 py-1.5 rounded-full text-xs leading-none shrink-0"
+              style={{
+                background: "rgba(211,255,82,0.1)",
+                color: "var(--volt)",
+                border: "1px solid var(--volt-glow-2)",
+              }}
+            >
+              {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
+            </span>
+          )}
         </section>
       )}
     </div>

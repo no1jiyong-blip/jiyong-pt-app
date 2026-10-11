@@ -40,27 +40,27 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
     <>
       <div className="pt-card-xl flex flex-col gap-5">
         {/* Month nav */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setCurrent(new Date(year, month - 1, 1))}
-            className="tap-haptic w-11 h-11 rounded-full bg-pt-2 border border-pt-5 flex items-center justify-center text-ink-1"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex flex-col items-center gap-1">
-            <p className="text-[10px] font-cond text-ink-3 leading-none tracking-wide-2 uppercase">
-              CALENDAR
-            </p>
-            <h3 className="font-mono-num font-bold text-xl text-ink-0 leading-none">
-              {year}.{pad(month + 1)}
-            </h3>
+        <div
+          className="flex items-center justify-between pb-4"
+          style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <h3 className="font-mono-num font-bold text-lg text-ink-0 leading-none">
+            {year}.{pad(month + 1)}
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrent(new Date(year, month - 1, 1))}
+              className="tap-haptic w-8 h-8 rounded-full bg-pt-1 border border-pt-5 flex items-center justify-center text-ink-2"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => setCurrent(new Date(year, month + 1, 1))}
+              className="tap-haptic w-8 h-8 rounded-full bg-pt-1 border border-pt-5 flex items-center justify-center text-ink-2"
+            >
+              <ChevronRight size={16} />
+            </button>
           </div>
-          <button
-            onClick={() => setCurrent(new Date(year, month + 1, 1))}
-            className="tap-haptic w-11 h-11 rounded-full bg-pt-2 border border-pt-5 flex items-center justify-center text-ink-1"
-          >
-            <ChevronRight size={18} />
-          </button>
         </div>
 
         {/* Day labels */}
@@ -92,9 +92,9 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
                   isToday ? "text-volt" : "text-ink-1"
                 )}
                 style={{
-                  background: isToday ? "rgba(211,255,82,0.08)" : "transparent",
+                  background: isToday ? "rgba(211,255,82,0.12)" : "transparent",
                   border: isToday
-                    ? "1px solid var(--volt-glow-2)"
+                    ? "1px solid var(--volt)"
                     : "1px solid transparent",
                 }}
               >
