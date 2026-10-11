@@ -65,14 +65,10 @@ export function SmartCalendar({ sessions, recordsBySession }: Props) {
 
         {/* Day labels */}
         <div className="grid grid-cols-7 gap-1">
-          {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+          {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
             <div
               key={d}
-              className="text-center text-[11px] font-cond font-bold py-1.5 leading-none"
-              style={{
-                color:
-                  i === 0 ? "#ff5577" : i === 6 ? "#5BA8FF" : "var(--ink-2)",
-              }}
+              className="text-center text-[11px] font-cond font-semibold py-1.5 leading-none text-ink-3"
             >
               {d}
             </div>

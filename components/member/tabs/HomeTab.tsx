@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { Clock, MessageSquare, AlertTriangle, Calendar, Dumbbell } from "lucide-react";
+import { AlertTriangle, Calendar } from "lucide-react";
 import type { Member, Session, ExerciseRecord } from "@/lib/types";
 import { formatKoreanDate, getTodayISO } from "@/lib/utils";
 import { SmartCalendar } from "@/components/member/SmartCalendar";
-import { BrandLogo } from "@/components/shared/BrandLogo";
 import { TabHeader } from "@/components/member/TabHeader";
 
 interface Props {
@@ -32,22 +31,15 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
     return upcoming[0] ?? null;
   }, [sessions, today]);
 
-  /* 가장 최근 트레이너 노트/피드백 */
-  const latestNote = useMemo(() => {
-    const sorted = [...sessions].sort((a, b) =>
-      b.date.localeCompare(a.date)
-    );
-    const withNote = sorted.find(
-      (s) => s.feedback?.trim() || s.trainer_note?.trim()
-    );
-    if (!withNote) return null;
-    return withNote.feedback?.trim()
-      ? { text: withNote.feedback, type: "feedback" as const, date: withNote.date }
-      : { text: withNote.trainer_note, type: "note" as const, date: withNote.date };
-  }, [sessions]);
+  /* 다음 수업까지 남은 일수 (D-Day) */
+  const dDay = useMemo(() => {
+    if (!nextSession) return null;
+    const diffMs = new Date(nextSession.date).getTime() - new Date(today).getTime();
+    return Math.round(diffMs / (1000 * 60 * 60 * 24));
+  }, [nextSession, today]);
 
   return (
-    <div className="anim-tab-slide flex flex-col gap-7 px-5 pt-2">
+    <div className="anim-tab-slide flex flex-col gap-7 px-5 pt-2 pb-32">
       {/* ─── 1. 통일된 탭 헤더 ─── */}
       <TabHeader
         title="DASHBOARD"
@@ -107,25 +99,23 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
           <p
             className="font-display tabular-nums leading-none"
             style={{
-              fontSize: 36,
+              fontSize: 30,
               color: "var(--volt)",
               textShadow: "0 0 16px var(--volt-glow-2)",
             }}
           >
             {progressPct}%
-            <span
-              className="text-ink-3 text-xs font-cond ml-2"
-              style={{ textShadow: "none" }}
-            >
-              완료
-            </span>
           </p>
         </div>
 
         <div className="progress-track">
           <div
             className="progress-fill"
-            style={{ width: `${progressPct}%` }}
+            style={{
+              width: `${progressPct}%`,
+              background: "var(--volt)",
+              boxShadow: "0 0 12px rgba(211,255,82,0.5)",
+            }}
           />
         </div>
       </section>
@@ -143,117 +133,45 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
         />
       </section>
 
-      {/* ─── 5. 다음 수업 (제목 → 카드 내부 Volt 강조) ─── */}
+      {/* ─── 5. 다음 수업 — 티켓형 카드 ─── */}
       {nextSession && (
         <section
-          className="pt-card flex flex-col gap-5"
+          className="pt-card flex flex-col gap-4"
           style={{ padding: 24 }}
         >
-          <div className="flex items-center gap-2">
-            <Calendar size={12} className="text-volt" />
-            <p className="text-[10px] text-volt font-cond font-bold tracking-wide-2 uppercase leading-none">
-              다음 수업
-            </p>
-          </div>
-
-          {/* 날짜 / 시간 / 세션 번호 */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <p className="font-display text-2xl text-ink-0 tracking-wider leading-none">
-              {formatKoreanDate(nextSession.date)}
-            </p>
-            <span className="text-ink-4">·</span>
-            <span className="flex items-center gap-1.5 text-sm font-cond text-ink-2 leading-none">
-              <Clock size={13} />
-              {nextSession.time ?? "—"}
-            </span>
-            {nextSession.session_number && (
-              <>
-                <span className="text-ink-4">·</span>
-                <span className="text-sm font-cond text-ink-2 leading-none">
-                  Session {nextSession.session_number}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* 오늘의 운동 제목 — Volt Green 강조 */}
-          {nextSession.title && (
-            <div
-              className="rounded-2xl p-5 flex items-center gap-4"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(211,255,82,0.10) 0%, rgba(20,20,20,0.8) 100%)",
-                border: "1px solid var(--volt-glow-2)",
-                boxShadow: "inset 0 0 20px rgba(211,255,82,0.05)",
-              }}
-            >
-              <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar size={12} className="text-volt" />
+              <p className="text-[10px] text-volt font-cond font-bold tracking-wide-2 uppercase leading-none">
+                NEXT SESSION
+              </p>
+            </div>
+            {dDay !== null && (
+              <span
+                className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none shrink-0"
                 style={{
                   background: "rgba(211,255,82,0.12)",
+                  color: "var(--volt)",
                   border: "1px solid var(--volt-glow-2)",
                 }}
               >
-                <Dumbbell size={18} className="text-volt" />
-              </div>
-              <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-                <p className="text-[10px] font-cond font-bold text-volt tracking-wider leading-none uppercase">
-                  오늘의 운동
-                </p>
-                <p
-                  className="font-italic-display uppercase leading-none truncate"
-                  style={{
-                    color: "var(--volt)",
-                    fontSize: "clamp(20px, 5vw, 26px)",
-                    textShadow: "0 0 16px var(--volt-glow-2)",
-                  }}
-                >
-                  {nextSession.title}
-                </p>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ─── 6. 트레이너 한마디 ─── */}
-      {latestNote && (
-        <section
-          className="pt-card flex flex-col gap-3"
-          style={{
-            padding: 24,
-            background:
-              "linear-gradient(135deg, rgba(211,255,82,0.08) 0%, rgba(20,20,20,0.78) 70%)",
-            borderColor: "var(--volt-glow-2)",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <MessageSquare size={14} className="text-volt" />
-            <p className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none">
-              트레이너 한마디
-            </p>
+                {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
+              </span>
+            )}
           </div>
 
-          <p className="text-base text-ink-0 leading-relaxed font-body">
-            {latestNote.text}
-          </p>
-
-          <p className="text-[11px] text-ink-3 font-cond leading-none">
-            {latestNote.date} ·{" "}
-            {latestNote.type === "feedback" ? "피드백" : "메모"}
-          </p>
+          <div className="flex flex-col gap-1.5">
+            <p className="font-bold text-xl text-ink-0 leading-tight">
+              {formatKoreanDate(nextSession.date)}
+              {nextSession.time && ` · ${nextSession.time}`}
+            </p>
+            <p className="text-sm text-ink-2 font-cond leading-none">
+              1:1 퍼스널 트레이닝
+              {nextSession.session_number && ` (Session ${nextSession.session_number})`}
+            </p>
+          </div>
         </section>
       )}
-
-      {/* ─── 7. 하단 누적 횟수 + 브랜드 로고 ─── */}
-      <section className="flex items-center justify-center gap-3 py-6 opacity-80">
-        <BrandLogo size={28} glow="soft" />
-        <p className="font-cond text-sm text-ink-2 leading-none tracking-wide-2">
-          누적{" "}
-          <span className="text-volt font-bold tabular-nums">{used}</span>회
-          완료 · JIYONG PT PRO
-        </p>
-      </section>
     </div>
   );
 }
