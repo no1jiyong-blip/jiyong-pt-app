@@ -3,15 +3,9 @@
 import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Member, Session, ExerciseRecord } from "@/lib/types";
-import { getTodayISO } from "@/lib/utils";
+import { getTodayISO, MONTH_ABBR, DAY_NAME_KO } from "@/lib/utils";
 import { SmartCalendar } from "@/components/member/SmartCalendar";
 import { TabHeader } from "@/components/member/TabHeader";
-
-const MONTH_ABBR = [
-  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-];
-const DAY_NAME = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 
 interface Props {
   member: Member;
@@ -175,7 +169,7 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
             </p>
             <p className="font-bold text-ink-0 text-base leading-snug">
               {nextSession.time && `${nextSession.time} · `}
-              {DAY_NAME[new Date(nextSession.date).getDay()]}
+              {DAY_NAME_KO[new Date(nextSession.date).getDay()]}
             </p>
             {nextSession.session_number && (
               <p className="text-xs text-ink-3 font-cond leading-none">

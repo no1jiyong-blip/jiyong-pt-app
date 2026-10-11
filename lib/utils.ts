@@ -27,3 +27,10 @@ export function getWeekStartISO(): string {
   const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
   return new Date(d.setDate(diff)).toISOString().split("T")[0];
 }
+
+export const MONTH_ABBR = [
+  "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+  "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+];
+
+export const DAY_NAME_KO = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];

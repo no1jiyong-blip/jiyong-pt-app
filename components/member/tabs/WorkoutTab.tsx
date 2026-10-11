@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Plus, X, Copy, Trophy, Loader2,
+  Plus, X, Copy, Trophy, Loader2, Clock,
   ChevronDown, ChevronUp, Play, Pause, RotateCcw, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import {
   ALL_EXERCISES, type PersonalLog, type Session,
   type ExerciseRecord, type Member, calcOneRM,
 } from "@/lib/types";
-import { getTodayISO } from "@/lib/utils";
+import { getTodayISO, MONTH_ABBR } from "@/lib/utils";
 import { Confetti } from "@/components/shared/Confetti";
 import { TabHeader } from "@/components/member/TabHeader";
 
@@ -197,12 +197,16 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       {/* ─── 개인 운동 일지 ─── */}
       <section className="flex flex-col gap-3">
         {/* 섹션 헤더 */}
-        <div className="flex items-center gap-3">
-          <div className="section-bar" />
-          <span className="font-display text-xl text-ink-0 tracking-wide leading-none uppercase">개인 운동 일지</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
+              WORKOUT LOG
+            </span>
+            <span className="font-cond font-semibold text-ink-0 text-xs leading-none">개인 운동 일지</span>
+          </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none"
             style={{ background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
-            {personalLogs.length}건
+            {personalLogs.length}건 기록됨
           </span>
         </div>
 
@@ -210,10 +214,15 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-0"
-            style={{ height: 52, background: "var(--pt-2)", border: "1px dashed var(--volt-glow-2)" }}
+            className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-0 transition-colors"
+            style={{ height: 56, background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}
           >
-            <Plus size={16} strokeWidth={3} style={{ color: "var(--volt)" }} />
+            <span
+              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+              style={{ background: "rgba(211,255,82,0.1)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
+            >
+              <Plus size={14} strokeWidth={3} />
+            </span>
             개인 운동 기록 추가
           </button>
         )}
@@ -233,27 +242,31 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
 
       {/* ─── 운동 히스토리 ─── */}
       <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <div className="section-bar" />
-          <span className="font-display text-xl text-ink-0 tracking-wide leading-none uppercase">운동 히스토리</span>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
+              HISTORY
+            </span>
+            <span className="font-cond font-semibold text-ink-0 text-xs leading-none">운동 히스토리</span>
+          </div>
           <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none"
             style={{ background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
-            {history.length}건
+            {history.length}건 완료
           </span>
         </div>
 
         {/* 타입 필터 */}
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-1 p-1.5 rounded-2xl" style={{ background: "rgba(0,0,0,0.6)", border: "1px solid var(--pt-5)" }}>
           {([
             ["all",      "전체보기",  null],
             ["pt",       "PT 수업",   "var(--volt)"],
             ["personal", "개인 운동", "#5BA8FF"],
           ] as [HistoryFilter, string, string | null][]).map(([key, label, dot]) => (
             <button key={key} onClick={() => setHistFilter(key)}
-              className="tap-haptic flex-1 py-2.5 rounded-xl font-cond font-bold text-xs tracking-wide leading-none transition-all flex items-center justify-center gap-1.5"
+              className="tap-haptic py-2.5 rounded-xl font-cond font-bold text-xs tracking-wide leading-none transition-all flex items-center justify-center gap-1.5"
               style={histFilter === key
-                ? { background: key === "all" ? "var(--grad-volt)" : key === "pt" ? "var(--pt-4)" : "var(--pt-4)", color: key === "all" ? "#000" : "var(--ink-0)", border: "1px solid var(--pt-6)" }
-                : { background: "var(--pt-2)", color: "var(--ink-3)", border: "1px solid var(--pt-5)" }}>
+                ? { background: "var(--pt-5)", color: key === "pt" ? "var(--volt)" : key === "personal" ? "#5BA8FF" : "var(--ink-0)" }
+                : { color: "var(--ink-3)" }}>
               {dot && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot }} />}
               {label}
             </button>
@@ -261,13 +274,16 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
         </div>
 
         {/* 기간 필터 */}
-        <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}>
+        <div className="grid grid-cols-3 gap-1 p-1 rounded-xl" style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}>
           {([["all","전체"],["week","이번 주"],["month","이번 달"]] as [PeriodFilter,string][]).map(([key, label]) => (
             <button key={key} onClick={() => setPeriodFilter(key)}
-              className="tap-haptic flex-1 py-2.5 rounded-lg font-cond font-bold text-xs leading-none transition-all"
-              style={periodFilter === key
-                ? { background: "var(--grad-volt)", color: "#000", boxShadow: "0 0 8px var(--volt-glow-2)" }
-                : { color: "var(--ink-3)" }}>
+              className="tap-haptic py-1.5 rounded-lg font-cond font-semibold leading-none transition-all"
+              style={{
+                fontSize: 11,
+                background: periodFilter === key ? "var(--pt-5)" : "transparent",
+                color: periodFilter === key ? "var(--ink-0)" : "var(--ink-3)",
+                fontWeight: periodFilter === key ? 700 : 500,
+              }}>
               {label}
             </button>
           ))}
@@ -297,92 +313,70 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
   return (
     <section className="flex flex-col gap-3">
       {/* ── 헤더: NEXT WORKOUT + D-day 배지 ── */}
-      <div className="flex items-center gap-2.5">
-        <div className="section-bar" />
-        <span
-          className="font-display text-ink-0 tracking-wide leading-none uppercase"
-          style={{ fontSize: 18, letterSpacing: "0.08em" }}
-        >
-          NEXT WORKOUT
-        </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span
+            className="rounded-full shrink-0"
+            style={{ width: 6, height: 14, background: "var(--volt)", boxShadow: "0 0 8px var(--volt-glow-2)" }}
+          />
+          <span
+            className="font-cond font-bold text-volt tracking-widest uppercase leading-none"
+            style={{ fontSize: 12 }}
+          >
+            NEXT WORKOUT
+          </span>
+        </div>
         {dDay !== null && (
           <span
-            className="font-cond font-bold leading-none"
+            className="font-mono-num font-bold leading-none shrink-0"
             style={{
               fontSize: 11,
               color: "var(--volt)",
-              border: "1.5px solid var(--volt)",
-              borderRadius: 6,
-              padding: "3px 8px",
-              letterSpacing: "0.04em",
+              background: "rgba(211,255,82,0.1)",
+              border: "1px solid var(--volt-glow-2)",
+              borderRadius: 999,
+              padding: "4px 10px",
+              boxShadow: "0 0 10px rgba(211,255,82,0.2)",
             }}
           >
-            {dDay === 0 ? "TODAY" : dDay === 1 ? "D-1" : `D-${dDay}`}
+            {dDay <= 0 ? "TODAY" : `D-${dDay}`}
           </span>
         )}
       </div>
 
       {/* ── 카드 ── */}
-      <div
-        className="rounded-2xl overflow-hidden"
-        style={{
-          background: "#141414",
-          border: "1px solid rgba(255,255,255,0.07)",
-        }}
-      >
+      <div className="pt-card" style={{ padding: 20 }}>
         {session ? (
-          <div className="p-5 flex flex-col gap-2.5">
-            {/* 시간 */}
-            {session.time && (
-              <p className="font-cond text-ink-2 leading-none" style={{ fontSize: 13 }}>
-                {session.time}
-              </p>
-            )}
-
-            {/* 제목 + TODAY 배지 */}
-            <div className="flex items-center justify-between gap-3">
-              <h3
-                className="font-display leading-none"
-                style={{
-                  fontSize: 26,
-                  color: "var(--volt)",
-                  textShadow: "0 0 18px rgba(211,255,82,0.35)",
-                }}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              {/* 날짜 타일 */}
+              <div
+                className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
+                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
               >
-                {isToday ? "오늘의 운동" : session.title || "다음 운동"}
-              </h3>
-              {isToday && (
-                <span
-                  className="font-cond font-bold leading-none shrink-0"
-                  style={{
-                    background: "var(--grad-volt)",
-                    color: "#000",
-                    borderRadius: 8,
-                    padding: "6px 12px",
-                    fontSize: 13,
-                  }}
-                >
-                  TODAY
+                <span className="text-[9px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
+                  {MONTH_ABBR[new Date(session.date).getMonth()]}
                 </span>
-              )}
+                <span className="font-mono-num font-extrabold text-xl text-ink-0 leading-none">
+                  {new Date(session.date).getDate()}
+                </span>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-cond font-bold text-volt tracking-wider uppercase leading-none mb-1">
+                  {isToday ? "TODAY" : "1:1 PERSONAL TRAINING"}
+                  {session.session_number && ` · SESSION ${session.session_number}`}
+                </p>
+                <h3 className="font-bold text-ink-0 text-lg leading-snug truncate">
+                  {session.time && `${session.time} `}
+                  {isToday ? "오늘의 운동" : session.title || "PT 수업"}
+                </h3>
+              </div>
             </div>
 
-            {/* SESSION 번호 */}
-            {session.session_number && (
-              <p
-                className="font-cond text-ink-3 leading-none uppercase tracking-wider"
-                style={{ fontSize: 11 }}
-              >
-                SESSION {session.session_number}
-              </p>
-            )}
-
-            {/* 구분선 */}
-            <div style={{ height: 1, background: "rgba(255,255,255,0.06)", margin: "2px 0" }} />
-
-            {/* 운동 목록 or 안내 메시지 */}
+            {/* 운동 목록 or 대기 상태 */}
             {records.length > 0 ? (
-              <div className="flex flex-col gap-2 mt-1">
+              <div className="flex flex-col gap-2">
                 {records.map((ex) => (
                   <div
                     key={ex.id}
@@ -398,16 +392,17 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
                       <span className="text-xs font-cond text-ink-3">{ex.sets}세트 × {ex.reps}회</span>
                       {ex.weight && (
                         <span
-                          className="font-cond font-bold leading-none"
+                          className="font-mono-num font-bold leading-none"
                           style={{
-                            background: "var(--grad-volt)",
-                            color: "#000",
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontSize: 10,
+                            background: "rgba(211,255,82,0.1)",
+                            color: "var(--volt)",
+                            border: "1px solid var(--volt-glow-2)",
+                            borderRadius: 8,
+                            padding: "4px 8px",
+                            fontSize: 11,
                           }}
                         >
-                          {ex.weight}kg
+                          @{ex.weight}kg
                         </span>
                       )}
                     </div>
@@ -415,21 +410,27 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
                 ))}
               </div>
             ) : (
-              <p
-                className="font-cond text-ink-3 text-center"
-                style={{ fontSize: 13, padding: "10px 0 4px" }}
+              <div
+                className="w-full rounded-2xl p-3 flex items-center justify-between text-xs"
+                style={{ background: "rgba(0,0,0,0.4)", border: "1px dashed var(--pt-6)", color: "var(--ink-3)" }}
               >
-                아직 운동 계획이 입력되지 않았습니다
-              </p>
+                <div className="flex items-center gap-2">
+                  <Clock size={13} className="text-ink-3" />
+                  <span className="font-cond">아직 운동 계획이 입력되지 않았습니다</span>
+                </div>
+                <span
+                  className="font-cond font-bold leading-none"
+                  style={{ fontSize: 9, color: "var(--ink-3)", background: "rgba(255,255,255,0.05)", padding: "4px 7px", borderRadius: 6 }}
+                >
+                  PLANNING
+                </span>
+              </div>
             )}
           </div>
         ) : (
-          /* 세션 자체가 없을 때 */
-          <div className="p-5 flex flex-col gap-2.5">
-            <p className="font-cond text-ink-3 text-center" style={{ fontSize: 13, padding: "14px 0" }}>
-              예정된 수업이 없습니다
-            </p>
-          </div>
+          <p className="font-cond text-ink-3 text-center" style={{ fontSize: 13, padding: "14px 0" }}>
+            예정된 수업이 없습니다
+          </p>
         )}
       </div>
     </section>
@@ -794,83 +795,92 @@ function HistoryCard({ item }: { item: HItem }) {
   const d = new Date(item.date);
 
   return (
-    <div className="rounded-2xl overflow-hidden transition-all"
+    <div className="rounded-3xl overflow-hidden transition-all"
       style={{
-        background: "var(--pt-2)",
-        border: open
-          ? `1px solid ${isPT ? "var(--volt-glow-2)" : "rgba(91,168,255,0.3)"}`
-          : "1px solid var(--pt-5)",
+        background: open ? "rgba(20,20,20,0.85)" : "rgba(20,20,20,0.6)",
+        border: open ? "1px solid rgba(255,255,255,0.1)" : "1px solid var(--pt-5)",
       }}>
-      <button onClick={() => setOpen(v => !v)} className="tap-haptic w-full flex items-center gap-3 p-4 text-left">
-        {/* 날짜 */}
-        <div className="flex flex-col gap-1 shrink-0" style={{ minWidth: 44 }}>
-          <p className="font-display text-ink-0 leading-none tabular-nums" style={{ fontSize: 18 }}>
-            {item.date.slice(5, 7)}.{item.date.slice(8, 10)}
-          </p>
-          <p className="text-[10px] font-cond text-ink-3 leading-none">{DAYS[d.getDay()]}요일</p>
+      <button onClick={() => setOpen(v => !v)} className="tap-haptic w-full flex items-center justify-between gap-3 p-5 text-left">
+        <div className="flex items-center gap-3.5 min-w-0">
+          {/* 날짜 */}
+          <div className="text-center shrink-0" style={{ width: 48 }}>
+            <p className="font-mono-num font-extrabold text-ink-0 leading-none" style={{ fontSize: 17 }}>
+              {item.date.slice(5, 7)}.{item.date.slice(8, 10)}
+            </p>
+            <p className="text-[10px] font-cond text-ink-3 leading-none mt-1">{DAYS[d.getDay()]}요일</p>
+          </div>
+
+          <div style={{ width: 1, height: 32, background: "var(--pt-5)" }} className="shrink-0" />
+
+          {/* 내용 */}
+          <div className="min-w-0 flex flex-col gap-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full font-cond font-bold text-[9px] leading-none uppercase tracking-wider w-fit"
+                style={isPT
+                  ? { background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }
+                  : { background: "rgba(91,168,255,0.1)", color: "#5BA8FF", border: "1px solid rgba(91,168,255,0.3)" }}>
+                {isPT ? "PT 수업" : "개인 운동"}
+              </span>
+              <span className="font-mono-num font-bold text-ink-3 leading-none" style={{ fontSize: 10 }}>
+                {item.subtitle}
+              </span>
+            </div>
+            <p className="font-bold text-ink-0 text-sm leading-tight truncate">{item.title}</p>
+          </div>
         </div>
 
-        {/* 내용 */}
-        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          {/* 태그 */}
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-cond font-bold text-[9px] leading-none w-fit"
-            style={isPT
-              ? { background: "rgba(211,255,82,0.15)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }
-              : { background: "rgba(91,168,255,0.12)", color: "#5BA8FF", border: "1px solid rgba(91,168,255,0.3)" }}>
-            {isPT ? "PT 수업" : "개인 운동"}
-          </span>
-          {/* 제목 */}
-          <p className="font-cond font-bold text-ink-0 text-sm leading-tight truncate">{item.title}</p>
-          {/* 서브타이틀 */}
-          <p className="text-[10px] font-cond text-ink-3 leading-none">{item.subtitle}</p>
+        {/* SET 배지 + 토글 */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex flex-col items-center justify-center rounded-xl px-3 py-1.5"
+            style={{
+              minWidth: 50,
+              background: isPT ? "rgba(211,255,82,0.06)" : "var(--pt-4)",
+              border: isPT ? "1px solid rgba(211,255,82,0.25)" : "1px solid var(--pt-5)",
+            }}>
+            <span className="font-mono-num font-extrabold leading-none"
+              style={{ fontSize: 16, color: isPT ? "var(--volt)" : "var(--ink-0)" }}>
+              {item.totalSets}
+            </span>
+            <span className="text-[9px] font-cond font-bold uppercase tracking-widest leading-none mt-0.5 text-ink-3">
+              SET
+            </span>
+          </div>
+          <ChevronDown size={16} className="text-ink-3 shrink-0 transition-transform"
+            style={{ transform: open ? "rotate(180deg)" : undefined }} />
         </div>
-
-        {/* SET 배지 */}
-        <div className="flex flex-col items-center justify-center shrink-0 rounded-xl"
-          style={{
-            width: 48, height: 48,
-            background: isPT ? "rgba(211,255,82,0.15)" : "var(--pt-3)",
-            border: isPT ? "1px solid var(--volt-glow-2)" : "1px solid var(--pt-5)",
-          }}>
-          <span className="font-display tabular-nums leading-none"
-            style={{ fontSize: 20, color: isPT ? "var(--volt)" : "var(--ink-0)" }}>
-            {item.totalSets}
-          </span>
-          <span className="text-[8px] font-cond leading-none mt-0.5"
-            style={{ color: isPT ? "var(--volt)" : "var(--ink-3)" }}>
-            SET
-          </span>
-        </div>
-
-        <ChevronDown size={14} className="text-ink-3 shrink-0 transition-transform"
-          style={{ transform: open ? "rotate(180deg)" : undefined }} />
       </button>
 
       {/* 아코디언 */}
       {open && (
-        <div className="px-4 pb-4 border-t border-pt-5 pt-3 flex flex-col gap-2">
-          {item.exercises.map((ex, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 py-2 border-b border-pt-5 last:border-0">
-              <span className="font-cond font-bold text-ink-0 text-sm">{ex.name}</span>
-              <div className="flex items-center gap-2 text-xs font-cond text-ink-2 shrink-0">
-                <span>{ex.sets}세트 × {ex.reps}회</span>
-                {ex.weight && (
-                  <span className="px-2 py-1 rounded-full font-bold text-[10px] leading-none"
-                    style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}>
-                    @{ex.weight}kg
-                  </span>
-                )}
+        <div className="px-5 pb-5 pt-1 flex flex-col gap-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          <div className="flex flex-col gap-2 pt-3">
+            {item.exercises.map((ex, i) => (
+              <div key={i} className="flex items-center justify-between py-2 px-3 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--ink-4)" }} />
+                  <span className="font-bold text-ink-0 text-xs truncate">{ex.name}</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono-num text-ink-3" style={{ fontSize: 11 }}>{ex.sets}세트 × {ex.reps}회</span>
+                  {ex.weight && (
+                    <span className="font-mono-num font-bold leading-none"
+                      style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)", borderRadius: 8, padding: "3px 7px", fontSize: 10 }}>
+                      @{ex.weight}kg
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {(item.rpe || item.condScore) && (
-            <div className="flex gap-4 mt-1">
+            <div className="flex gap-4 px-1">
               {item.rpe && <span className="text-[10px] font-cond text-ink-3">RPE <b className="text-volt">{item.rpe}</b></span>}
               {item.condScore && <span className="text-[10px] font-cond text-ink-3">컨디션 <b style={{ color: "#5BA8FF" }}>{item.condScore}</b></span>}
             </div>
           )}
           {item.feedback && (
-            <div className="mt-1 rounded-xl p-3" style={{ background: "rgba(211,255,82,0.06)", border: "1px solid var(--volt-glow-2)" }}>
+            <div className="rounded-xl p-3" style={{ background: "rgba(211,255,82,0.06)", border: "1px solid var(--volt-glow-2)" }}>
               <p className="text-[9px] text-volt font-cond font-bold uppercase tracking-wider mb-1.5 leading-none">트레이너 피드백</p>
               <p className="text-xs text-ink-1 leading-relaxed">{item.feedback}</p>
             </div>
