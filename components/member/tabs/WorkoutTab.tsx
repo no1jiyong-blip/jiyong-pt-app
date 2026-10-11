@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Plus, X, Copy, Trophy, Loader2, Clock,
-  ChevronDown, ChevronUp, Play, Pause, RotateCcw, Check,
+  Plus, X, Copy, Trophy, Loader2, Clock, Dumbbell, Minus,
+  ChevronDown, Play, Pause, RotateCcw, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -210,25 +210,23 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
           </span>
         </div>
 
-        {/* 추가 버튼 */}
-        {!showForm && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-0 transition-colors"
-            style={{ height: 56, background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}
+        {/* 추가 버튼 (모달 오픈) */}
+        <button
+          onClick={() => setShowForm(true)}
+          className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-0 transition-colors"
+          style={{ height: 56, background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}
+        >
+          <span
+            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "rgba(211,255,82,0.1)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
           >
-            <span
-              className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-              style={{ background: "rgba(211,255,82,0.1)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
-            >
-              <Plus size={14} strokeWidth={3} />
-            </span>
-            개인 운동 기록 추가
-          </button>
-        )}
+            <Plus size={14} strokeWidth={3} />
+          </span>
+          개인 운동 기록 추가
+        </button>
 
         {showForm && (
-          <PersonalWorkoutForm
+          <PersonalWorkoutModal
             memberId={member.id} pbMap={pbMap}
             onSaved={() => { setShowForm(false); onUpdate(); }}
             onCancel={() => setShowForm(false)}
@@ -438,294 +436,204 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   개인 운동 입력 폼
+   개인 운동 입력 모달
    ════════════════════════════════════════════════════════════════ */
-interface SetRow { weight: string; reps: string; }
-interface ExEntry { exercise: string; sets: SetRow[]; isOpen: boolean; }
+const QUICK_EXERCISES = ["랫풀다운", "체스트프레스", "스쿼트", "데드리프트", "레그프레스", "숄더프레스"];
 
-function PersonalWorkoutForm({ memberId, pbMap, onSaved, onCancel, onPB }: {
+interface SetRow { weight: number; reps: number; }
+
+function PersonalWorkoutModal({ memberId, pbMap, onSaved, onCancel, onPB }: {
   memberId: string; pbMap: Map<string, number>;
   onSaved: () => void; onCancel: () => void; onPB: (n: string) => void;
 }) {
-  const [date,        setDate]        = useState(getTodayISO());
-  const [workoutMemo, setWorkoutMemo] = useState("");
-  const [entries,     setEntries]     = useState<ExEntry[]>([
-    { exercise: "", sets: [{ weight: "", reps: "" }], isOpen: true },
-  ]);
-  const [rpe,       setRpe]       = useState(7);
-  const [condition, setCondition] = useState(7);
-  const [saving,    setSaving]    = useState(false);
+  const [date,         setDate]         = useState(getTodayISO());
+  const [exerciseName, setExerciseName] = useState("");
+  const [sets,         setSets]         = useState<SetRow[]>([{ weight: 20, reps: 12 }]);
+  const [rpe,          setRpe]          = useState(7);
+  const [condition,    setCondition]    = useState(7);
+  const [workoutMemo,  setWorkoutMemo]  = useState("");
+  const [saving,       setSaving]       = useState(false);
 
-  const addExercise  = () => setEntries(p => [...p, { exercise: "", sets: [{ weight: "", reps: "" }], isOpen: true }]);
-  const toggleOpen   = (i: number) => setEntries(p => p.map((e, idx) => idx === i ? { ...e, isOpen: !e.isOpen } : e));
-  const updateName   = (i: number, v: string) => setEntries(p => p.map((e, idx) => idx === i ? { ...e, exercise: v } : e));
-  const removeEntry  = (i: number) => setEntries(p => p.filter((_, idx) => idx !== i));
-  const addSet       = (i: number) => setEntries(p => p.map((e, idx) => idx === i ? { ...e, sets: [...e.sets, { weight: "", reps: "" }] } : e));
-  const copyLast     = (i: number) => setEntries(p => p.map((e, idx) => { if (idx !== i) return e; const last = e.sets[e.sets.length - 1]; return { ...e, sets: [...e.sets, { ...last }] }; }));
-  const removeSet    = (ei: number, si: number) => setEntries(p => p.map((e, idx) => idx === ei ? { ...e, sets: e.sets.filter((_, i) => i !== si) } : e));
-  const updateSet    = (ei: number, si: number, k: "weight" | "reps", v: string) =>
-    setEntries(p => p.map((e, idx) => { if (idx !== ei) return e; const s = [...e.sets]; s[si] = { ...s[si], [k]: v }; return { ...e, sets: s }; }));
+  const updateSet = (si: number, k: "weight" | "reps", delta: number, min: number) =>
+    setSets(p => p.map((s, idx) => idx === si ? { ...s, [k]: Math.max(min, s[k] + delta) } : s));
+  const addSet    = () => setSets(p => [...p, { weight: 20, reps: 12 }]);
+  const copyLast  = () => setSets(p => [...p, { ...p[p.length - 1] }]);
+  const removeSet = (si: number) => setSets(p => p.filter((_, idx) => idx !== si));
+
+  const currentPb = exerciseName.trim() ? pbMap.get(exerciseName.trim()) ?? 0 : 0;
 
   const save = async () => {
-    const valid = entries.filter(e => e.exercise.trim() && e.sets.some(s => s.reps || s.weight));
-    if (!valid.length) return;
+    if (!exerciseName.trim() || sets.length === 0) return;
     setSaving(true);
 
-    let pbName: string | null = null;
-    for (const entry of valid) {
-      const cur = pbMap.get(entry.exercise.trim()) ?? 0;
-      if (cur > 0 && entry.sets.some(s => calcOneRM(Number(s.weight), Number(s.reps)) > cur)) {
-        pbName = entry.exercise.trim(); break;
-      }
-    }
+    const isPb = currentPb > 0 && sets.some(s => calcOneRM(s.weight, s.reps) > currentPb);
 
-    const rows = valid.map(e => ({
+    const { error } = await supabase.from("personal_logs").insert({
       member_id: memberId, log_date: date,
-      exercise_name: e.exercise.trim(),
-      reps: Math.round(e.sets.reduce((a, s) => a + Number(s.reps || 0), 0) / e.sets.length) || null,
-      sets: e.sets.filter(s => s.reps || s.weight).length,
+      exercise_name: exerciseName.trim(),
+      reps: Math.round(sets.reduce((a, s) => a + s.reps, 0) / sets.length) || null,
+      sets: sets.length,
       workout_memo: workoutMemo.trim() || null,
       memo: workoutMemo.trim()
         ? `${workoutMemo.trim()} · RPE ${rpe} · 컨디션 ${condition}`
         : `RPE ${rpe} · 컨디션 ${condition}`,
       condition_score: condition,
-    }));
+    });
 
-    const { error } = await supabase.from("personal_logs").insert(rows);
     setSaving(false);
-    if (!error) { if (pbName) onPB(pbName); onSaved(); }
+    if (!error) { if (isPb) onPB(exerciseName.trim()); onSaved(); }
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl p-5"
-      style={{ background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}>
-      {/* 헤더 */}
-      <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full" style={{ background: "var(--volt)" }} />
-        <span className="font-cond font-bold text-ink-0 text-sm leading-none">새 운동 기록</span>
-        <div className="flex-1" />
-        <button onClick={onCancel} className="tap-haptic w-8 h-8 rounded-full bg-pt-3 flex items-center justify-center text-ink-3">
-          <X size={14} />
-        </button>
-      </div>
-
-      {/* 날짜 */}
-      <div className="flex flex-col gap-1.5">
-        <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider leading-none">날짜</p>
-        <div className="rounded-xl flex items-center px-4" style={{ background: "var(--pt-3)", border: "1px solid var(--pt-5)", height: 52 }}>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="flex-1 bg-transparent font-cond font-bold text-ink-0 text-sm leading-none outline-none" />
-        </div>
-      </div>
-
-      {/* 운동 종목 */}
-      <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider leading-none">운동 종목</p>
-
-      {entries.map((entry, ei) => (
-        <ExerciseBlock key={ei} index={ei} entry={entry} pbMap={pbMap}
-          onToggle={() => toggleOpen(ei)}
-          onNameChange={v => updateName(ei, v)}
-          onSetUpdate={(si, k, v) => updateSet(ei, si, k, v)}
-          onAddSet={() => addSet(ei)}
-          onCopyLast={() => copyLast(ei)}
-          onRemoveSet={si => removeSet(ei, si)}
-          onRemove={entries.length > 1 ? () => removeEntry(ei) : undefined}
-        />
-      ))}
-
-      {/* 새 종목 추가 */}
-      <button onClick={addExercise}
-        className="tap-haptic w-full rounded-xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-1"
-        style={{ height: 48, background: "var(--pt-3)", border: "1px dashed var(--pt-6)" }}>
-        <Plus size={14} strokeWidth={3} />+ 새 운동 종목 추가
-      </button>
-
-      {/* 운동 강도 RPE */}
-      <ScoreRow label="운동 강도 (RPE)" value={rpe} onChange={setRpe} dict={RPE_DESC} />
-
-      {/* 컨디션 */}
-      <ScoreRow label="컨디션" value={condition} onChange={setCondition} dict={COND_DESC} />
-
-      {/* 메모 */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider leading-none">메모</p>
-          <span className="text-[9px] font-cond text-ink-4 leading-none">선택</span>
-        </div>
-        <textarea value={workoutMemo} onChange={e => setWorkoutMemo(e.target.value)}
-          placeholder="컨디션, 강도, 특이사항 등..."
-          className="pt-input rounded-xl resize-none" rows={3}
-          style={{ lineHeight: 1.6, paddingTop: 14, paddingBottom: 14 }} />
-      </div>
-
-      {/* 저장 / 취소 */}
-      <div className="grid grid-cols-2 gap-3">
-        <button onClick={save} disabled={saving}
-          className="tap-haptic rounded-2xl flex items-center justify-center gap-2 font-display tracking-wider"
-          style={{ height: 56, fontSize: 16, background: "var(--grad-volt)", color: "#000", boxShadow: "0 4px 20px var(--volt-glow-2)" }}>
-          {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
-          {saving ? "저장 중..." : "저장"}
-        </button>
-        <button onClick={onCancel} className="tap-haptic rounded-2xl font-cond font-bold text-ink-1"
-          style={{ height: 56, background: "var(--pt-3)", border: "1px solid var(--pt-5)", fontSize: 15 }}>
-          취소
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── 종목 블록 ─── */
-function ExerciseBlock({ index, entry, pbMap, onToggle, onNameChange, onSetUpdate, onAddSet, onCopyLast, onRemoveSet, onRemove }: {
-  index: number; entry: ExEntry; pbMap: Map<string, number>;
-  onToggle: () => void; onNameChange: (v: string) => void;
-  onSetUpdate: (si: number, k: "weight" | "reps", v: string) => void;
-  onAddSet: () => void; onCopyLast: () => void;
-  onRemoveSet: (si: number) => void; onRemove?: () => void;
-}) {
-  const currentPb = entry.exercise.trim() ? pbMap.get(entry.exercise.trim()) ?? 0 : 0;
-
-  /* 접힌 상태 요약 "60×10, 70×8, 70×8" */
-  const summary = entry.sets
-    .filter(s => s.weight || s.reps)
-    .map(s => `${s.weight || "—"}×${s.reps || "—"}`)
-    .join(", ");
-
-  return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "var(--pt-3)", border: "1px solid var(--pt-5)" }}>
-      {/* 종목 헤더 행 */}
-      <div className="flex items-center gap-2 px-3 py-3">
-        {/* 번호 배지 */}
-        <span className="w-8 h-8 rounded-xl flex items-center justify-center font-display text-sm leading-none shrink-0"
-          style={{ background: "var(--grad-volt)", color: "#000" }}>
-          {String(index + 1).padStart(2, "0")}
-        </span>
-
-        {/* 종목명 입력 */}
-        <input type="text" list="all-ex" value={entry.exercise}
-          onChange={e => onNameChange(e.target.value)} placeholder="종목명"
-          className="flex-1 bg-transparent font-cond font-bold text-ink-0 text-sm leading-none outline-none placeholder:text-ink-4" />
-        <datalist id="all-ex">{ALL_EXERCISES.map(e => <option key={e} value={e} />)}</datalist>
-
-        {/* 접힌 상태 요약 */}
-        {!entry.isOpen && summary && (
-          <span className="text-[9px] font-cond text-ink-3 leading-none truncate max-w-[130px] shrink-0">{summary}</span>
-        )}
-
-        {/* 펼치기/접기 */}
-        <button onClick={onToggle} className="tap-haptic w-7 h-7 flex items-center justify-center text-ink-2 shrink-0">
-          {entry.isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-        </button>
-
-        {/* 종목 삭제 */}
-        {onRemove && (
-          <button onClick={onRemove}
-            className="tap-haptic w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: "rgba(255,59,59,0.15)", color: "var(--danger)" }}>
-            <X size={13} />
-          </button>
-        )}
-      </div>
-
-      {/* 펼친 상태 — 세트 입력 */}
-      {entry.isOpen && (
-        <div className="px-3 pb-3 flex flex-col gap-2">
-          {/* 컬럼 헤더 */}
-          <div className="grid text-[9px] font-cond text-ink-3 uppercase tracking-wider leading-none"
-            style={{ gridTemplateColumns: "36px 1fr 1fr 36px" }}>
-            <span className="text-center">SET</span>
-            <span className="text-center">WEIGHT</span>
-            <span className="text-center">REPS</span>
-            <span />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      style={{ background: "rgba(0,0,0,0.8)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" }}
+      onClick={e => e.target === e.currentTarget && onCancel()}
+    >
+      <div
+        className="w-full max-w-md rounded-3xl p-6 flex flex-col gap-5 anim-fade-slide"
+        style={{ background: "var(--pt-2)", border: "1px solid var(--pt-5)", maxHeight: "90vh", overflowY: "auto" }}
+      >
+        {/* 헤더 */}
+        <div className="flex items-center justify-between pb-4" style={{ borderBottom: "1px solid var(--pt-5)" }}>
+          <div className="flex items-center gap-2">
+            <Dumbbell size={18} className="text-volt" />
+            <h3 className="font-cond font-bold text-ink-0 text-base leading-none">개인 운동 기록</h3>
           </div>
+          <button onClick={onCancel} className="tap-haptic w-8 h-8 rounded-full bg-pt-4 flex items-center justify-center text-ink-3">
+            <X size={14} />
+          </button>
+        </div>
 
-          {/* 세트 행 */}
-          {entry.sets.map((set, si) => {
-            const isPb = currentPb > 0 && calcOneRM(Number(set.weight), Number(set.reps)) > currentPb;
+        {/* 날짜 */}
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider">운동 날짜</label>
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className="pt-input" />
+        </div>
+
+        {/* 운동 종목 */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider">운동 종목</label>
+            <span className="text-[10px] font-cond text-volt">자주 하는 운동 탭</span>
+          </div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {QUICK_EXERCISES.map(item => (
+              <button key={item} onClick={() => setExerciseName(item)}
+                className="tap-haptic px-3 py-1.5 rounded-xl text-xs font-cond font-bold shrink-0 transition-colors"
+                style={exerciseName === item
+                  ? { background: "var(--volt)", color: "#000" }
+                  : { background: "var(--pt-3)", border: "1px solid var(--pt-5)", color: "var(--ink-2)" }}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <input type="text" list="all-ex" value={exerciseName}
+            onChange={e => setExerciseName(e.target.value)} placeholder="직접 종목명을 입력하세요"
+            className="pt-input" />
+          <datalist id="all-ex">{ALL_EXERCISES.map(e => <option key={e} value={e} />)}</datalist>
+        </div>
+
+        {/* 세트 입력 */}
+        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: "var(--pt-1)", border: "1px solid var(--pt-5)" }}>
+          {sets.map((set, si) => {
+            const isPb = currentPb > 0 && calcOneRM(set.weight, set.reps) > currentPb;
             return (
-              <div key={si} className="grid items-center gap-2"
-                style={{ gridTemplateColumns: "36px 1fr 1fr 36px" }}>
-                {/* SET 번호 */}
-                <span className="font-display text-sm leading-none text-center"
-                  style={{ color: isPb ? "var(--volt)" : "var(--ink-3)" }}>
-                  {si + 1}
-                </span>
-
-                {/* WEIGHT 입력 */}
-                <div
-                  className="flex items-center rounded-xl overflow-hidden"
-                  style={{
-                    background: "var(--pt-2)",
-                    border: `1px solid ${isPb ? "var(--volt)" : "var(--pt-5)"}`,
-                    height: 50,
-                  }}
-                >
-                  <input
-                    type="number"
-                    value={set.weight}
-                    placeholder="0"
-                    onChange={e => onSetUpdate(si, "weight", e.target.value)}
-                    className="flex-1 min-w-0 bg-transparent font-display text-ink-0 text-right outline-none pr-1"
-                    style={{ fontSize: 22, paddingLeft: 8 }}
-                  />
+              <div key={si} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
                   <span
-                    className="font-cond font-bold text-ink-3 shrink-0 leading-none"
-                    style={{ fontSize: 10, paddingRight: 8, paddingLeft: 4 }}
+                    className="font-cond font-bold text-[10px] px-2 py-0.5 rounded-md leading-none"
+                    style={{
+                      background: isPb ? "var(--grad-volt)" : "rgba(211,255,82,0.1)",
+                      color: isPb ? "#000" : "var(--volt)",
+                    }}
                   >
-                    KG
+                    SET {si + 1}{isPb ? " · PB" : ""}
                   </span>
+                  {sets.length > 1 && (
+                    <button onClick={() => removeSet(si)} className="tap-haptic text-ink-3 hover:text-danger">
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
-
-                {/* REPS 입력 */}
-                <div
-                  className="flex items-center rounded-xl overflow-hidden"
-                  style={{
-                    background: "var(--pt-2)",
-                    border: `1px solid ${isPb ? "var(--volt)" : "var(--pt-5)"}`,
-                    height: 50,
-                  }}
-                >
-                  <input
-                    type="number"
-                    value={set.reps}
-                    placeholder="0"
-                    onChange={e => onSetUpdate(si, "reps", e.target.value)}
-                    className="flex-1 min-w-0 bg-transparent font-display text-ink-0 text-right outline-none pr-1"
-                    style={{ fontSize: 22, paddingLeft: 8 }}
-                  />
-                  <span
-                    className="font-cond font-bold text-ink-3 shrink-0 leading-none"
-                    style={{ fontSize: 10, paddingRight: 8, paddingLeft: 4 }}
-                  >
-                    REPS
-                  </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-xl p-3" style={{ background: "var(--pt-3)", border: "1px solid var(--pt-5)" }}>
+                    <span className="text-[9px] font-cond font-bold text-ink-3 block mb-1">무게 (WEIGHT)</span>
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => updateSet(si, "weight", -5, 0)} className="tap-haptic w-7 h-7 rounded-lg bg-pt-4 flex items-center justify-center text-ink-2">
+                        <Minus size={14} />
+                      </button>
+                      <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 17 }}>
+                        {set.weight}<span className="text-xs font-normal text-ink-3"> kg</span>
+                      </span>
+                      <button onClick={() => updateSet(si, "weight", 5, 0)} className="tap-haptic w-7 h-7 rounded-lg bg-pt-4 flex items-center justify-center text-ink-2">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: "var(--pt-3)", border: "1px solid var(--pt-5)" }}>
+                    <span className="text-[9px] font-cond font-bold text-ink-3 block mb-1">횟수 (REPS)</span>
+                    <div className="flex items-center justify-between">
+                      <button onClick={() => updateSet(si, "reps", -1, 1)} className="tap-haptic w-7 h-7 rounded-lg bg-pt-4 flex items-center justify-center text-ink-2">
+                        <Minus size={14} />
+                      </button>
+                      <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 17 }}>
+                        {set.reps}<span className="text-xs font-normal text-ink-3"> 회</span>
+                      </span>
+                      <button onClick={() => updateSet(si, "reps", 1, 1)} className="tap-haptic w-7 h-7 rounded-lg bg-pt-4 flex items-center justify-center text-ink-2">
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-
-                {/* 세트 삭제 */}
-                <button onClick={() => onRemoveSet(si)} disabled={entry.sets.length === 1}
-                  className="tap-haptic w-7 h-7 rounded-lg flex items-center justify-center mx-auto disabled:opacity-20"
-                  style={{ background: "rgba(255,59,59,0.12)", color: "var(--danger)" }}>
-                  <X size={12} />
-                </button>
               </div>
             );
           })}
 
-          {/* 세트 추가 / 복사 */}
-          <div className="grid grid-cols-2 gap-2 mt-1">
-            <button onClick={onAddSet}
-              className="tap-haptic py-3 rounded-xl flex items-center justify-center gap-1.5 font-cond font-bold text-xs"
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={addSet}
+              className="tap-haptic py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-cond font-bold text-xs"
               style={{ background: "var(--pt-4)", border: "1px solid var(--pt-5)", color: "var(--ink-0)" }}>
-              <Plus size={12} strokeWidth={3} />+ 세트 추가
+              <Plus size={12} strokeWidth={3} />세트 추가
             </button>
-            <button onClick={onCopyLast}
-              className="tap-haptic py-3 rounded-xl flex items-center justify-center gap-1.5 font-cond font-bold text-xs text-volt"
+            <button onClick={copyLast}
+              className="tap-haptic py-2.5 rounded-xl flex items-center justify-center gap-1.5 font-cond font-bold text-xs text-volt"
               style={{ background: "rgba(211,255,82,0.08)", border: "1px solid var(--volt-glow-2)" }}>
               <Copy size={12} strokeWidth={2.5} />이전 세트 복사
             </button>
           </div>
         </div>
-      )}
+
+        {/* 운동 강도 RPE */}
+        <ScoreRow label="운동 강도 (RPE)" value={rpe} onChange={setRpe} dict={RPE_DESC} />
+
+        {/* 컨디션 */}
+        <ScoreRow label="컨디션" value={condition} onChange={setCondition} dict={COND_DESC} />
+
+        {/* 메모 */}
+        <div className="flex flex-col gap-2">
+          <label className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider">운동 메모 (선택)</label>
+          <textarea value={workoutMemo} onChange={e => setWorkoutMemo(e.target.value)}
+            placeholder="오늘의 컨디션, 특이사항, 자극 부위를 가볍게 적어보세요..."
+            className="pt-input rounded-xl resize-none" rows={2}
+            style={{ lineHeight: 1.6, paddingTop: 14, paddingBottom: 14 }} />
+        </div>
+
+        {/* 저장 / 취소 */}
+        <div className="flex gap-3 pt-1">
+          <button onClick={onCancel}
+            className="tap-haptic flex-1 rounded-2xl font-cond font-bold text-ink-1"
+            style={{ height: 56, background: "var(--pt-4)", fontSize: 15 }}>
+            취소
+          </button>
+          <button onClick={save} disabled={saving || !exerciseName.trim()}
+            className="tap-haptic rounded-2xl flex items-center justify-center gap-2 font-display tracking-wider"
+            style={{ flex: 2, height: 56, fontSize: 16, background: "var(--grad-volt)", color: "#000", boxShadow: "0 4px 20px var(--volt-glow-2)" }}>
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} strokeWidth={3} />}
+            {saving ? "저장 중..." : "기록 완료"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
