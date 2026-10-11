@@ -10,6 +10,9 @@ interface Props {
 }
 
 export function BrandLogo({ size = 32, glow = "soft", className }: Props) {
+  // 러너 일러스트의 손끝/발끝이 원형 프레임에 딱 붙어 잘려 보이는 문제 —
+  // 안쪽에 여유를 두고 object-contain으로 전체가 보이게 함
+  const innerSize = Math.round(size * 0.82);
   return (
     <span
       className={cn(
@@ -27,13 +30,13 @@ export function BrandLogo({ size = 32, glow = "soft", className }: Props) {
       <Image
         src="/logo.png"
         alt="Jiyong PT Pro"
-        width={size}
-        height={size}
+        width={innerSize}
+        height={innerSize}
         priority={size >= 80}
         style={{
-          width: size,
-          height: size,
-          objectFit: "cover",
+          width: innerSize,
+          height: innerSize,
+          objectFit: "contain",
         }}
       />
     </span>

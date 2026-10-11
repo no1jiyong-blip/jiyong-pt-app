@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, LogIn } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { login, getCurrentUser } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { BrandLogo } from "@/components/shared/BrandLogo";
@@ -41,7 +41,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-pt-0 px-6 py-14 safe-pt safe-pb">
-      <div className="pt-container flex flex-col gap-12 max-w-sm">
+      <div className="pt-container flex flex-col gap-12 max-w-md">
         {/* Logo */}
         <div className="flex flex-col items-center gap-7 pt-8">
           <div className="relative flex items-center justify-center">
@@ -57,11 +57,14 @@ export default function LoginPage() {
             <BrandLogo size={104} glow="strong" className="relative" />
           </div>
           <div className="flex flex-col items-center gap-3">
-            <h1 className="font-display text-4xl tracking-wide-3 text-ink-0 leading-none">
-              PT MEMBER
+            <h1
+              className="font-display text-4xl text-ink-0 leading-none"
+              style={{ letterSpacing: "0.08em" }}
+            >
+              PT COACH
             </h1>
             <p className="text-ink-2 font-cond text-sm tracking-wider">
-              개인 트레이닝 회원 관리 시스템
+              퍼스널 트레이닝 코칭 &amp; 회원 관리 시스템
             </p>
           </div>
         </div>
@@ -116,11 +119,11 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className="btn-volt w-full"
-            style={{ height: 60, fontSize: 17, fontWeight: 800 }}
+            className="btn-volt-outline w-full"
+            style={{ height: 60, fontSize: 17 }}
           >
-            <LogIn size={20} strokeWidth={2.5} />
-            {loading ? "로그인 중..." : "로그인"}
+            {loading ? "로그인 중..." : "LOGIN"}
+            {!loading && <ArrowRight size={20} strokeWidth={2.5} />}
           </button>
         </div>
       </div>

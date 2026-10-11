@@ -307,6 +307,32 @@
 .btn-volt:active { transform: scale(0.97); }
 .btn-volt:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* 다크 럭셔리 톤 — 꽉 찬 볼트 대신 테두리/텍스트만 볼트로 은은하게 빛나는 버전 */
+.btn-volt-outline {
+  background: var(--pt-4);
+  color: var(--volt);
+  border: 1px solid var(--volt-glow-2);
+  border-radius: 14px;
+  font-family: var(--f-cond);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-size: 15px;
+  padding: 14px 28px;
+  min-height: 52px;
+  transition: all 0.15s;
+  box-shadow: 0 0 20px var(--volt-glow);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-volt-outline:hover {
+  background: var(--pt-5);
+  box-shadow: 0 0 28px var(--volt-glow-2);
+}
+.btn-volt-outline:active { transform: scale(0.97); }
+.btn-volt-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .btn-ghost {
   background-color: var(--pt-4);
   color: var(--ink-1);
