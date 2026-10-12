@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Flame } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -269,12 +269,16 @@ function SupportCard({ card, category }: { card: ExerciseCard; category: "upper"
       </ResponsiveContainer>
 
       {/* 푸터 */}
-      <div className="flex items-center justify-between pt-2 text-[10px] font-cond text-ink-3 leading-none"
+      <div className="flex items-center justify-between gap-2 pt-2 text-[10px] font-cond text-ink-3 leading-none"
         style={{ borderTop: "1px solid var(--pt-5)" }}>
-        <span>
+        <span className="truncate">
           {card.streak >= 2 ? `최근 ${card.streak}회 연속 ${card.isReverse ? "강도 향상" : "증량"} 중` : `최근 갱신 ${card.lastDate.slice(5)}`}
         </span>
-        <ChevronRight size={12} className="text-ink-4" />
+        {card.streak >= 3 ? (
+          <Flame size={13} className="shrink-0" style={{ color: card.color }} />
+        ) : (
+          <ChevronRight size={12} className="text-ink-4 shrink-0" />
+        )}
       </div>
     </div>
   );

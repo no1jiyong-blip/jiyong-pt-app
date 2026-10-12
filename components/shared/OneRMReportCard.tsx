@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown, Trophy, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, ShieldCheck } from "lucide-react";
 import type { Session, ExerciseRecord } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
 
@@ -171,21 +171,21 @@ export function OneRMReportCard({
         </p>
       </div>
 
-      {/* 지용 PT 리포트 텍스트 */}
+      {/* 트레이너 코칭 리포트 (자동 생성 요약) */}
       <div
         className="rounded-2xl p-4 flex flex-col gap-2"
         style={{
-          background: "rgba(255,255,255,0.03)",
+          background: "rgba(0,0,0,0.35)",
           border: `1px solid ${color}25`,
         }}
       >
         <div className="flex items-center gap-2">
-          <Calendar size={11} style={{ color }} />
+          <ShieldCheck size={13} style={{ color }} />
           <p
-            className="text-[9px] font-cond font-bold tracking-wider leading-none uppercase"
+            className="text-[10px] font-cond font-bold tracking-wider leading-none uppercase"
             style={{ color }}
           >
-            지용 PT 리포트
+            TRAINER COACHING REPORT
           </p>
         </div>
         <p className="text-xs text-ink-1 leading-relaxed">
@@ -244,44 +244,36 @@ export function OneRMReportCard({
             </div>
           </div>
 
-          {/* 처음 vs 지금 바 */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] font-cond text-ink-3 w-10 text-right leading-none shrink-0">
-                시작
-              </span>
-              <div
-                className="rounded-full"
-                style={{
-                  height: 10,
-                  flex: `0 0 ${Math.round((first.orm / latest.orm) * 100)}%`,
-                  background: `${color}40`,
-                  border: `1px solid ${color}30`,
-                }}
-              />
-              <span className="text-[10px] font-cond text-ink-2 tabular-nums leading-none">
-                {first.orm}kg
-              </span>
+          {/* 처음 vs 지금 바 — 트랙 하나 안에 안전하게 (% 기반, 화면 밖으로 안 나감) */}
+          <div
+            className="rounded-2xl p-3"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
+          >
+            <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-2">
+              <span>시작 {first.orm}kg</span>
+              <span style={{ color }}>현재 {latest.orm}kg</span>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[9px] font-cond leading-none w-10 text-right shrink-0" style={{ color }}>
-                현재
-              </span>
+            <div
+              className="relative rounded-full overflow-hidden"
+              style={{ height: 10, width: "100%", background: "var(--pt-4)" }}
+            >
               <div
-                className="rounded-full"
+                className="absolute inset-y-0 left-0 rounded-full"
                 style={{
-                  height: 10,
-                  flex: "0 0 100%",
-                  background: `linear-gradient(90deg, ${color}80 0%, ${color} 100%)`,
+                  width: "100%",
+                  background: `linear-gradient(90deg, ${color}50 0%, ${color} 100%)`,
                   boxShadow: `0 0 10px ${glow}`,
                 }}
               />
-              <span
-                className="text-[10px] font-cond font-bold tabular-nums leading-none"
-                style={{ color }}
-              >
-                {latest.orm}kg
-              </span>
+              {/* 시작 지점 마커 */}
+              <div
+                className="absolute top-0 bottom-0"
+                style={{
+                  left: `${Math.min(96, Math.round((first.orm / latest.orm) * 100))}%`,
+                  width: 2,
+                  background: "rgba(0,0,0,0.6)",
+                }}
+              />
             </div>
           </div>
 

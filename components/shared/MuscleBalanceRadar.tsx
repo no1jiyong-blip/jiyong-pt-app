@@ -106,17 +106,40 @@ export function MuscleBalanceRadar({
     ];
   }, [sessions, recordsBySession, qualities]);
 
+  /* 종합 균형 등급 — 각 축의 '나' 점수가 목표 대비 얼마나 근접한지 평균 */
+  const grade = useMemo(() => {
+    const ratios = data.map((d) => d.you / d.target);
+    const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+    if (avg >= 1.05) return "A+";
+    if (avg >= 0.95) return "A";
+    if (avg >= 0.85) return "B+";
+    if (avg >= 0.7) return "B";
+    return "C";
+  }, [data]);
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <h3 className="font-display text-xl text-ink-0 tracking-wide leading-none uppercase">
-            MUSCLE BALANCE
-          </h3>
+          <div className="flex items-center gap-2">
+            <span
+              className="rounded-full shrink-0"
+              style={{ width: 6, height: 14, background: "var(--volt)", boxShadow: "0 0 8px var(--volt-glow-2)" }}
+            />
+            <h3 className="font-cond font-bold text-ink-0 tracking-widest uppercase leading-none" style={{ fontSize: 13 }}>
+              MUSCLE BALANCE
+            </h3>
+          </div>
           <p className="text-[11px] font-cond text-ink-3 leading-none">
             상체·하체·등·어깨·코어·좌우 균형 지표
           </p>
         </div>
+        <span
+          className="font-cond font-bold px-2.5 py-1 rounded-full text-[10px] leading-none shrink-0 uppercase"
+          style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
+        >
+          GRADE {grade}
+        </span>
       </div>
 
       <div className="pt-card" style={{ padding: 20 }}>
