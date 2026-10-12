@@ -8,6 +8,7 @@ import {
   PolarRadiusAxis,
   ResponsiveContainer,
 } from "recharts";
+import { Sparkles, Target } from "lucide-react";
 import type { Session, ExerciseRecord, SessionQuality } from "@/lib/types";
 import { calcOneRM, EXERCISE_GROUPS } from "@/lib/types";
 import { useMemo } from "react";
@@ -117,6 +118,13 @@ export function MuscleBalanceRadar({
     return "C";
   }, [data]);
 
+  /* 가장 강한 축 / 목표 대비 가장 많이 부족한 축 */
+  const { best, weak } = useMemo(() => {
+    const sortedByScore = [...data].sort((a, b) => b.you - a.you);
+    const sortedByGap = [...data].sort((a, b) => a.you - a.target - (b.you - b.target));
+    return { best: sortedByScore[0], weak: sortedByGap[0] };
+  }, [data]);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
@@ -205,7 +213,7 @@ export function MuscleBalanceRadar({
           </RadarChart>
         </ResponsiveContainer>
 
-        {/* 범례 + 최근 밸런스 노트 */}
+        {/* 범례 */}
         <div className="flex justify-center gap-6 pt-3 border-t border-pt-5">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full" style={{ background: "#D3FF52", boxShadow: "0 0 6px rgba(211,255,82,0.6)" }} />
@@ -214,6 +222,24 @@ export function MuscleBalanceRadar({
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full" style={{ background: "#5BA8FF" }} />
             <span className="text-[10px] font-cond text-ink-2">목표</span>
+          </div>
+        </div>
+
+        {/* 강점 / 보완 포인트 진단 */}
+        <div className="grid grid-cols-2 gap-2.5 pt-4 mt-1" style={{ borderTop: "1px solid var(--pt-5)" }}>
+          <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--volt-glow-2)" }}>
+            <div className="flex items-center gap-1.5 mb-1 text-volt">
+              <Sparkles size={13} />
+              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">BEST STRENGTH</span>
+            </div>
+            <p className="text-xs font-bold text-ink-0">{best.axis} ({best.you}점)</p>
+          </div>
+          <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,140,0,0.3)" }}>
+            <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--warn)" }}>
+              <Target size={13} />
+              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">FOCUS NEEDED</span>
+            </div>
+            <p className="text-xs font-bold text-ink-0">{weak.axis} ({weak.you}점)</p>
           </div>
         </div>
       </div>

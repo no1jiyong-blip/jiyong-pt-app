@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dumbbell, Activity, BarChart3 } from "lucide-react";
+import { Dumbbell, Activity, BarChart3, TrendingUp, Scale, CalendarCheck2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   type Member,
@@ -13,6 +13,7 @@ import {
   calcOneRM,
   getAgeGroup,
 } from "@/lib/types";
+import { computeOneRMProgress, computeTrainingVolumeTons, computeTier, computeAttendance } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
@@ -150,6 +151,31 @@ export function GrowthTab({
     return "NOVICE";
   }, [overall.myMax, benchmarks, selectedEx]);
 
+  /* 3대 운동 종목별 진행 상황 (BIG 3 TOTAL 그리드 + 등록 대비 총 증량에 사용) */
+  const liftProgress = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof computeOneRMProgress>>();
+    sbdConfig.forEach(({ name }) => {
+      map.set(name, computeOneRMProgress(name, sessions, recordsBySession));
+    });
+    return map;
+  }, [sbdConfig, sessions, recordsBySession]);
+
+  const bigThreeTotal = sbdConfig.reduce(
+    (sum, { name }) => sum + (liftProgress.get(name)?.latest?.orm ?? 0),
+    0
+  );
+  const totalGainKg = sbdConfig.reduce((sum, { name }) => {
+    const p = liftProgress.get(name);
+    if (!p?.first || !p?.latest) return sum;
+    return sum + (p.latest.orm - p.first.orm);
+  }, 0);
+  const volumeTons = useMemo(
+    () => computeTrainingVolumeTons(sessions, recordsBySession),
+    [sessions, recordsBySession]
+  );
+  const tier = useMemo(() => computeTier(overall.avg), [overall.avg]);
+  const attendance = useMemo(() => computeAttendance(sessions, 28), [sessions]);
+
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2">
       <Confetti trigger={confettiKey} count={32} />
@@ -167,6 +193,9 @@ export function GrowthTab({
             percentile={overall.avg}
             gender={member.gender}
             ageGroup={ageGroup}
+            tier={tier}
+            totalGainKg={totalGainKg}
+            volumeTons={volumeTons}
           />
         </div>
       )}
@@ -188,35 +217,60 @@ export function GrowthTab({
             />
           </div>
 
-          {/* ② 3대 운동 — 종목 선택 + 통합 히어로 카드 */}
+          {/* ② 3대 운동 — BIG 3 TOTAL + 통합 히어로 카드 */}
           <section className="px-5 flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
-                MAIN LIFTS
-              </span>
-              <p className="text-[11px] font-cond text-ink-3 leading-none">
-                {member.gender === "female"
-                  ? "스쿼트 · 데드리프트 · 숄더프레스"
-                  : "스쿼트 · 데드리프트 · 벤치프레스"}
-              </p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="rounded-full shrink-0"
+                  style={{ width: 6, height: 14, background: "var(--volt)", boxShadow: "0 0 8px var(--volt-glow-2)" }}
+                />
+                <span className="font-cond font-bold text-ink-0 tracking-widest uppercase leading-none" style={{ fontSize: 13 }}>
+                  BIG 3 TOTAL
+                </span>
+              </div>
+              {bigThreeTotal > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-cond font-bold text-ink-3">합산</span>
+                  <span className="font-mono-num font-extrabold text-volt text-base">{bigThreeTotal} KG</span>
+                </div>
+              )}
             </div>
 
-            {/* 종목 선택 탭 */}
-            <div className="flex gap-2">
+            {/* 종목 선택 그리드 — 종목명 + 현재 중량 + 전 기록 대비 변화 */}
+            <div className="grid grid-cols-3 gap-2.5">
               {sbdConfig.map((ex) => {
                 const active = selectedEx === ex.name;
+                const p = liftProgress.get(ex.name);
+                const change = p?.latest && p?.previous ? p.latest.orm - p.previous.orm : null;
                 return (
                   <button
                     key={ex.name}
                     onClick={() => setSelectedEx(ex.name)}
-                    className="tap-haptic flex-1 py-2.5 rounded-xl font-cond font-bold text-sm transition-all"
+                    className="tap-haptic p-3 rounded-2xl text-left transition-all"
                     style={
                       active
-                        ? { background: `${ex.color}1A`, border: `1px solid ${ex.color}`, color: ex.color }
-                        : { background: "var(--pt-2)", border: "1px solid var(--pt-5)", color: "var(--ink-3)" }
+                        ? { background: "var(--pt-2)", border: `1px solid ${ex.color}80`, boxShadow: `0 0 14px ${ex.color}26` }
+                        : { background: "var(--pt-1)", border: "1px solid var(--pt-5)" }
                     }
                   >
-                    {ex.name}
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-[10px] font-cond font-semibold text-ink-3 truncate">{ex.name}</span>
+                      {change !== null && change !== 0 && (
+                        <span
+                          className="font-mono-num font-bold text-[9px] px-1 rounded shrink-0"
+                          style={{ color: ex.color, background: `${ex.color}1A` }}
+                        >
+                          {change > 0 ? "+" : ""}{change}kg
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-0.5">
+                      <span className="font-mono-num font-extrabold" style={{ fontSize: 18, color: active ? ex.color : "var(--ink-0)" }}>
+                        {p?.latest?.orm ?? 0}
+                      </span>
+                      <span className="text-[9px] font-cond font-bold text-ink-4">KG</span>
+                    </div>
                   </button>
                 );
               })}
@@ -259,6 +313,30 @@ export function GrowthTab({
                     bare
                   />
 
+                  {(() => {
+                    const p = liftProgress.get(selectedEx);
+                    const goalKg = benchmarks.find((b) => b.exercise_name === selectedEx)?.advanced_kg;
+                    if (!p?.first || !p?.latest || !goalKg || goalKg <= p.first.orm) return null;
+                    const ratio = Math.max(
+                      0,
+                      Math.min(100, Math.round(((p.latest.orm - p.first.orm) / (goalKg - p.first.orm)) * 100))
+                    );
+                    return (
+                      <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
+                        <div className="flex items-center justify-between text-[11px] font-cond font-bold mb-2">
+                          <span className="text-ink-3">목표 달성도</span>
+                          <span className="font-mono-num" style={{ color: cfg.color }}>{ratio}%</span>
+                        </div>
+                        <div className="w-full rounded-full overflow-hidden" style={{ height: 10, background: "var(--pt-4)" }}>
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${ratio}%`, background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <HeroSBDChart
                     sessions={sessions}
                     recordsBySession={recordsBySession}
@@ -278,6 +356,49 @@ export function GrowthTab({
               recordsBySession={recordsBySession}
             />
           </div>
+
+          {/* ④ 출석 꾸준함 — 최근 28일 */}
+          {attendance.totalCount > 0 && (
+            <div className="px-5">
+              <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <CalendarCheck2 size={14} className="text-volt" />
+                    <span className="font-cond font-bold text-ink-0 tracking-wider uppercase leading-none" style={{ fontSize: 11 }}>
+                      최근 28일 출석
+                    </span>
+                  </div>
+                  <span className="font-mono-num font-bold text-volt text-xs">
+                    출석률 {attendance.rate}% ({attendance.completedCount}/{attendance.totalCount}회)
+                  </span>
+                </div>
+
+                <div
+                  className="grid grid-cols-7 gap-1.5 p-3 rounded-2xl"
+                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}
+                >
+                  {Array.from({ length: attendance.days }).map((_, i) => {
+                    const d = new Date(attendance.startISO);
+                    d.setDate(d.getDate() + i);
+                    const iso = d.toISOString().slice(0, 10);
+                    const attended = attendance.attendedDates.has(iso);
+                    return (
+                      <div
+                        key={iso}
+                        title={iso}
+                        className="rounded-md"
+                        style={{
+                          height: 20,
+                          background: attended ? "var(--volt)" : "var(--pt-4)",
+                          boxShadow: attended ? "0 0 8px var(--volt-glow-2)" : undefined,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -319,11 +440,17 @@ function TotalStrengthRank({
   percentile,
   gender,
   ageGroup,
+  tier,
+  totalGainKg,
+  volumeTons,
 }: {
   topPct: number;
   percentile: number;
   gender: "male" | "female" | null;
   ageGroup: ReturnType<typeof getAgeGroup>;
+  tier: { label: string; sub: "I" | "II" };
+  totalGainKg: number;
+  volumeTons: number;
 }) {
   const demoLabel =
     gender && ageGroup
@@ -351,9 +478,14 @@ function TotalStrengthRank({
         }}
       />
       <div className="flex items-start justify-between gap-3 relative z-10">
-        <p className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none">
-          TOTAL STRENGTH RANK
-        </p>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none">
+            TOTAL STRENGTH RANK
+          </p>
+          <p className="font-cond font-bold text-ink-0 text-sm leading-none">
+            {tier.label} {tier.sub}
+          </p>
+        </div>
         {demoLabel && (
           <span
             className="text-[10px] font-cond text-ink-3 leading-none"
@@ -421,6 +553,36 @@ function TotalStrengthRank({
           <span className="text-volt font-bold">ELITE</span>
         </div>
       </div>
+
+      {/* 누적 2대 핵심 메트릭 */}
+      {(totalGainKg > 0 || volumeTons > 0) && (
+        <div className="grid grid-cols-2 gap-3 pt-4 relative z-10" style={{ borderTop: "1px solid rgba(211,255,82,0.15)" }}>
+          <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex items-center gap-1.5 mb-1 text-ink-3">
+              <TrendingUp size={11} />
+              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">3대 운동 총 증량</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-mono-num font-extrabold text-volt" style={{ fontSize: 22, textShadow: "0 0 8px var(--volt-glow-2)" }}>
+                +{totalGainKg}
+              </span>
+              <span className="text-xs font-cond font-bold text-ink-3">KG</span>
+            </div>
+          </div>
+          <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex items-center gap-1.5 mb-1 text-ink-3">
+              <Scale size={11} />
+              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">누적 훈련 볼륨</span>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 22 }}>
+                {volumeTons}
+              </span>
+              <span className="text-xs font-cond font-bold text-ink-3">TON</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

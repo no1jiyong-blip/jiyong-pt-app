@@ -34,10 +34,10 @@ export function TrainerAssessmentCard({
               <p
                 className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none"
               >
-                JIYONG PT — 트레이너 재활 소견
+                TRAINER&apos;S MONTHLY PRESCRIPTION
               </p>
               <p className="text-[10px] font-cond text-ink-3 leading-none">
-                신지용 · 재활 운동 전문가 9년
+                신지용 코치 전담 분석 소견
               </p>
             </div>
           </div>
