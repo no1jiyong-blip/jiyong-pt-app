@@ -44,7 +44,14 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
       .sort((a, b) => a.date.localeCompare(b.date));
 
     return SBD.map((ex) => {
-      const points: { date: string; orm: number; isPR: boolean }[] = [];
+      const points: {
+        date: string;
+        orm: number;
+        isPR: boolean;
+        actualWeight: number;
+        reps: number;
+        isActual: boolean;
+      }[] = [];
       let prevMax = 0;
 
       completed.forEach((s) => {
@@ -52,12 +59,32 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
           (r) => r.exercise_name === ex.name
         );
         if (recs.length === 0) return;
-        const maxORM = Math.max(...recs.map((r) => calcOneRM(r.weight ?? 0, r.reps ?? 0)));
-        if (maxORM <= 0) return;
+
+        // 해당 세션에서 1RM이 가장 높게 나온 세트 하나를 찾음 (실제 중량×횟수 근거로 툴팁에 사용)
+        let bestRec: ExerciseRecord | null = null;
+        let bestORM = 0;
+        recs.forEach((r) => {
+          const orm = calcOneRM(r.weight ?? 0, r.reps ?? 0);
+          if (orm > bestORM) {
+            bestORM = orm;
+            bestRec = r;
+          }
+        });
+        if (!bestRec || bestORM <= 0) return;
+
         const label = `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`;
-        const isPR = maxORM > prevMax;
-        if (isPR) prevMax = maxORM;
-        points.push({ date: label, orm: maxORM, isPR });
+        const isPR = bestORM > prevMax;
+        if (isPR) prevMax = bestORM;
+        const rec = bestRec as ExerciseRecord;
+        points.push({
+          date: label,
+          orm: bestORM,
+          isPR,
+          actualWeight: rec.weight ?? 0,
+          reps: rec.reps ?? 0,
+          // 1회(reps=1)로 직접 들어올린 기록이면 '실측', 그 외엔 Brzycki 공식 '추정'
+          isActual: (rec.reps ?? 0) === 1,
+        });
       });
 
       // Ghost (advanced_kg)
@@ -65,10 +92,20 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
       const ghostKg = bench?.advanced_kg ?? null;
 
       // 미래 예측 (선형회귀)
-      const allData: { date: string; orm: number | null; proj: number | null }[] = points.map((p) => ({
+      const allData: {
+        date: string;
+        orm: number | null;
+        proj: number | null;
+        actualWeight: number | null;
+        reps: number | null;
+        isActual: boolean;
+      }[] = points.map((p) => ({
         date: p.date,
         orm: p.orm,
         proj: null,
+        actualWeight: p.actualWeight,
+        reps: p.reps,
+        isActual: p.isActual,
       }));
 
       if (points.length >= 3) {
@@ -86,7 +123,14 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
         allData[allData.length - 1].proj = lastOrm;
         for (let i = 1; i <= 3; i++) {
           const projected = Math.max(lastOrm, Math.round(lastOrm + slope * i));
-          allData.push({ date: `+${i * 2}주`, orm: null, proj: projected });
+          allData.push({
+            date: `+${i * 2}주`,
+            orm: null,
+            proj: projected,
+            actualWeight: null,
+            reps: null,
+            isActual: false,
+          });
         }
       }
 
@@ -168,7 +212,15 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
   );
 }
 
-/** 회원 친화적 커스텀 툴팁 — 실제 기록 vs 미래 예측을 구분해서 쉬운 말로 설명 */
+interface TooltipRow {
+  orm: number | null;
+  proj: number | null;
+  actualWeight: number | null;
+  reps: number | null;
+  isActual: boolean;
+}
+
+/** 회원 친화적 커스텀 툴팁 — 실측 1RM(1회 직접 수행) vs 공식 추정 vs 미래 예측을 구분해서 쉬운 말로 설명 */
 function ChartTooltip({
   active,
   payload,
@@ -176,7 +228,7 @@ function ChartTooltip({
   color,
 }: {
   active?: boolean;
-  payload?: { dataKey?: string; value?: number | null }[];
+  payload?: { dataKey?: string | number; value?: unknown; payload?: TooltipRow }[];
   label?: string;
   color: string;
 }) {
@@ -184,42 +236,68 @@ function ChartTooltip({
   const entry =
     payload.find((p) => p.dataKey === "orm" && p.value != null) ??
     payload.find((p) => p.dataKey === "proj" && p.value != null);
-  if (!entry || entry.value == null) return null;
+  if (!entry || entry.value == null || typeof entry.value !== "number" || !entry.payload) return null;
+  const value = entry.value;
+  const row = entry.payload;
   const isProjected = entry.dataKey === "proj";
+  const isActual = !isProjected && row.isActual;
+
+  const badgeColor = isActual ? "#fbbf24" : color;
+  const badgeLabel = isProjected ? "예측" : isActual ? "실측 1RM" : "공식 추정";
 
   return (
     <div
-      className="rounded-2xl px-3.5 py-2.5"
+      className="rounded-2xl px-4 py-3"
       style={{
         background: "rgba(10,10,10,0.95)",
         border: `1px solid ${color}60`,
         backdropFilter: "blur(12px)",
-        minWidth: 150,
+        minWidth: 170,
       }}
     >
       <div
-        className="flex items-center justify-between gap-2 pb-1.5 mb-2"
+        className="flex items-center justify-between gap-2 pb-2 mb-2"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
       >
-        <span className="text-[11px] font-cond font-bold text-ink-2">
-          {isProjected ? `성장 예측 (${label})` : `${label} 세션 기록`}
+        <span className="text-xs font-cond font-bold text-ink-2">
+          {isProjected ? `성장 예측 (${label})` : `${label} 측정 세션`}
         </span>
         <span
-          className="w-1.5 h-1.5 rounded-full shrink-0"
-          style={{ background: color, boxShadow: `0 0 6px ${color}` }}
-        />
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-cond font-semibold text-ink-3">
-          {isProjected ? "예상 도달 근력" : "1회 최대 근력"}
+          className="text-[9px] font-cond font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+          style={{ background: `${badgeColor}1A`, color: badgeColor, border: `1px solid ${badgeColor}50` }}
+        >
+          {badgeLabel}
         </span>
-        <span className="font-mono-num font-extrabold text-sm" style={{ color }}>
-          {entry.value}
+      </div>
+
+      {/* 실제 수행 내용 (몇 kg으로 몇 회 했는지) */}
+      {!isProjected && row.actualWeight !== null && row.reps !== null && (
+        <div
+          className="mb-2 px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs"
+          style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <span className="text-ink-3 font-cond font-semibold">실제 수행</span>
+          <span className="font-mono-num font-bold text-ink-0">
+            {row.actualWeight}kg × {row.reps}회
+          </span>
+        </div>
+      )}
+
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs font-cond font-semibold text-ink-3">
+          {isActual ? "실제 최대 근력" : isProjected ? "예상 도달 근력" : "추정 최대 근력"}
+        </span>
+        <span className="font-mono-num font-extrabold text-sm" style={{ color: badgeColor }}>
+          {value}
           <span className="text-[10px] text-ink-0 ml-0.5">KG</span>
         </span>
       </div>
-      <p className="text-[9px] text-ink-4 leading-tight pt-1">
-        {isProjected ? "※ 현재 성장 추세 유지 시 예상치" : "※ 해당 세션 최고 1RM 기준 (Brzycki 공식)"}
+      <p className="text-[9px] text-ink-4 leading-tight pt-1 text-right">
+        {isActual
+          ? "※ 1회 성공 기준 실측 기록"
+          : isProjected
+          ? "※ 현재 성장 추세 유지 시 예상치"
+          : "※ 해당 세션 최고 세트 기준 Brzycki 공식 추정"}
       </p>
     </div>
   );
@@ -229,8 +307,22 @@ interface ChartItem {
   name: string;
   color: string;
   glow: string;
-  data: { date: string; orm: number | null; proj: number | null }[];
-  rawPoints: { date: string; orm: number; isPR: boolean }[];
+  data: {
+    date: string;
+    orm: number | null;
+    proj: number | null;
+    actualWeight: number | null;
+    reps: number | null;
+    isActual: boolean;
+  }[];
+  rawPoints: {
+    date: string;
+    orm: number;
+    isPR: boolean;
+    actualWeight: number;
+    reps: number;
+    isActual: boolean;
+  }[];
   ghostKg: number | null;
   yDomain: [number, number];
   totalGrowth: number;
