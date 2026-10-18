@@ -12,7 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
-import { Trophy } from "lucide-react";
+import { Trophy, Award } from "lucide-react";
 import type { Session, ExerciseRecord, BenchmarkData } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
 
@@ -105,6 +105,13 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
         : 0;
       const prCount = points.filter((p) => p.isPR).length;
 
+      // 최근 연속 PR 갱신 횟수 (마지막 세션부터 거슬러 올라가며 PR이 끊길 때까지)
+      let streak = 0;
+      for (let i = points.length - 1; i >= 0; i--) {
+        if (points[i].isPR) streak++;
+        else break;
+      }
+
       return {
         ...ex,
         data: allData,
@@ -113,6 +120,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
         yDomain,
         totalGrowth,
         prCount,
+        streak,
         current: points[points.length - 1]?.orm ?? 0,
       };
     });
@@ -170,6 +178,7 @@ interface ChartItem {
   yDomain: [number, number];
   totalGrowth: number;
   prCount: number;
+  streak: number;
   current: number;
 }
 
@@ -261,17 +270,20 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             fill={`url(#${gradId})`}
             dot={(props: { cx?: number; cy?: number; index?: number }) => {
               const { cx, cy, index } = props;
-              const pt = index !== undefined ? chart.rawPoints[index] : undefined;
-              if (!pt || !cx || !cy) return <></>;
+              // 최신 기록(PR) 지점 하나만 펄스 링으로 강조 — 과거 점은 라인/영역으로 충분히 드러남
+              const isLatest = index === chart.rawPoints.length - 1;
+              if (!isLatest || cx === undefined || cy === undefined) return <></>;
               return (
-                <circle
-                  cx={cx} cy={cy}
-                  r={pt.isPR ? 6 : 4}
-                  fill={chart.color}
-                  stroke="#000"
-                  strokeWidth={pt.isPR ? 2 : 1}
-                  style={{ filter: pt.isPR ? `drop-shadow(0 0 8px ${chart.color})` : undefined }}
-                />
+                <g key="latest-dot">
+                  <circle cx={cx} cy={cy} r={10} fill={chart.color} fillOpacity={0.25} />
+                  <circle
+                    cx={cx} cy={cy} r={4.5}
+                    fill={chart.color}
+                    stroke="#000"
+                    strokeWidth={2}
+                    style={{ filter: `drop-shadow(0 0 8px ${chart.color})` }}
+                  />
+                </g>
               );
             }}
             activeDot={{ r: 7, stroke: "#000", strokeWidth: 2 }}
@@ -327,6 +339,14 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
           </span>
         )}
       </div>
+      {chart.streak >= 2 && (
+        <div className="flex items-center gap-1.5">
+          <Award size={11} style={{ color: chart.color }} />
+          <span className="font-cond font-bold text-[11px] leading-none" style={{ color: chart.color }}>
+            {chart.streak}회 연속 PR 갱신 중
+          </span>
+        </div>
+      )}
     </>
   );
 
