@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame } from "lucide-react";
+import { Flame, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -36,6 +36,13 @@ interface Props {
   recordsBySession: Record<string, ExerciseRecord[]>;
 }
 
+interface SupportLog {
+  date: string;
+  actualWeight: number;
+  reps: number;
+  scoreKg: number;
+}
+
 interface ExerciseCard {
   name: string;
   color: string;
@@ -47,6 +54,7 @@ interface ExerciseCard {
   isReverse: boolean;
   lastDate: string;
   streak: number;
+  logs: SupportLog[];
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -54,6 +62,7 @@ interface ExerciseCard {
    ═══════════════════════════════════════════════════════════════ */
 export function SupportCarousel({ sessions, recordsBySession }: Props) {
   const [tab, setTab] = useState<"upper" | "lower">("upper");
+  const [expandedName, setExpandedName] = useState<string | null>(null);
 
   const exercises = tab === "upper" ? UPPER_EXERCISES : LOWER_EXERCISES;
 
@@ -70,7 +79,13 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
     return exercises
       .map((ex) => {
         const isReverse = PULLUP_NAMES.includes(ex);
-        const sessionMax: { date: string; val: number; rawDate: string }[] = [];
+        const sessionMax: {
+          date: string;
+          val: number;
+          rawDate: string;
+          actualWeight: number;
+          reps: number;
+        }[] = [];
 
         completed.forEach((s) => {
           const recs = (recordsBySession[s.id] ?? []).filter(
@@ -79,15 +94,27 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
           if (recs.length === 0) return;
 
           let sessionVal: number;
+          let actualWeight = 0;
+          let reps = 0;
           if (isReverse) {
             // 풀업: 보조 무게 낮을수록 강함 → 역산 (40kg → 점수 60, 20kg → 80)
-            const weights = recs.map((r) => r.weight ?? 0).filter((w) => w > 0);
-            if (weights.length === 0) return;
-            sessionVal = Math.max(0, 100 - Math.min(...weights));
+            const withWeight = recs.filter((r) => (r.weight ?? 0) > 0);
+            if (withWeight.length === 0) return;
+            const bestRec = withWeight.reduce((a, b) => ((a.weight ?? 0) <= (b.weight ?? 0) ? a : b));
+            sessionVal = Math.max(0, 100 - (bestRec.weight ?? 0));
+            actualWeight = bestRec.weight ?? 0;
+            reps = bestRec.reps ?? 0;
           } else {
-            sessionVal = Math.max(
-              ...recs.map((r) => calcOneRM(r.weight ?? 0, r.reps ?? 0))
-            );
+            let bestORM = 0;
+            recs.forEach((r) => {
+              const orm = calcOneRM(r.weight ?? 0, r.reps ?? 0);
+              if (orm > bestORM) {
+                bestORM = orm;
+                actualWeight = r.weight ?? 0;
+                reps = r.reps ?? 0;
+              }
+            });
+            sessionVal = bestORM;
           }
           if (sessionVal <= 0) return;
 
@@ -95,6 +122,8 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
             date: `${s.date.slice(5, 7)}/${s.date.slice(8, 10)}`,
             val: sessionVal,
             rawDate: s.date,
+            actualWeight,
+            reps,
           });
         });
 
@@ -119,6 +148,14 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
             ? Math.round(((current - pastVal) / pastVal) * 100 * 10) / 10
             : 0;
 
+        // 세션별 실제 수행 내역 — 아코디언 상세 리스트용 (최신순)
+        const logs: SupportLog[] = [...sessionMax].reverse().map((p) => ({
+          date: `${parseInt(p.rawDate.slice(5, 7), 10)}월 ${parseInt(p.rawDate.slice(8, 10), 10)}일`,
+          actualWeight: p.actualWeight,
+          reps: p.reps,
+          scoreKg: Math.round(p.val),
+        }));
+
         return {
           name: ex,
           color: tab === "upper" ? "#94a3b8" : "#7dd3fc",
@@ -130,6 +167,7 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
           isReverse,
           lastDate: sessionMax[sessionMax.length - 1]?.rawDate ?? "",
           streak,
+          logs,
         } as ExerciseCard;
       })
       .filter((c): c is ExerciseCard => c !== null)
@@ -192,7 +230,14 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         <div className="flex flex-col gap-3">
           {/* key={card.name} — React 고유 번호표 */}
           {cards.map((card, i) => (
-            <SupportRankCard key={card.name} rank={i + 1} card={card} category={tab} />
+            <SupportRankCard
+              key={card.name}
+              rank={i + 1}
+              card={card}
+              category={tab}
+              expanded={expandedName === card.name}
+              onToggle={() => setExpandedName((prev) => (prev === card.name ? null : card.name))}
+            />
           ))}
         </div>
       )}
@@ -201,104 +246,168 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   단일 랭킹 카드 컴포넌트 — TOP N 뱃지 + 시작➔현재 서사 + 스파크라인
+   단일 랭킹 카드 컴포넌트 — TOP N 뱃지 + 시작➔현재 서사 + 와이드 스파크라인
+   + 세션별 실제 수행 내역 아코디언
    ═══════════════════════════════════════════════════════════════ */
 function SupportRankCard({
   rank,
   card,
   category,
+  expanded,
+  onToggle,
 }: {
   rank: number;
   card: ExerciseCard;
   category: "upper" | "lower";
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   // linearGradient id — 카드별로 고유하게 (한글 종목명 → ASCII 변환)
   const gradId = `sg-${card.name.replace(/\s/g, "_").replace(/[^\w]/g, "")}`;
   const unit = card.isReverse ? "pt" : "kg";
 
   return (
-    <div
-      className="pt-card flex items-center justify-between gap-3"
-      style={{ padding: 18 }}
-    >
-      {/* 좌측: 순위/카테고리/성장률 + 종목명 + 시작➔현재 서사 */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span
-            className="font-mono-num font-extrabold px-2 py-0.5 rounded-full text-[10px] leading-none shrink-0"
-            style={
-              rank === 1
-                ? { background: "var(--volt)", color: "#000" }
-                : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }
-            }
-          >
-            TOP {rank}
-          </span>
-          <span className="text-[10px] font-cond font-bold text-ink-3">
-            {category === "upper" ? "상체" : "하체"}
-          </span>
-          {card.growthPct !== 0 && (
+    <div className="pt-card flex flex-col gap-3" style={{ padding: 18 }}>
+      {/* 상단: 순위/카테고리/성장률 + 종목명 ↔ 연속 갱신 뱃지 */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap mb-1">
             <span
-              className="font-mono-num font-bold px-1.5 py-0.5 rounded text-[9px] leading-none"
-              style={{
-                background: card.growthPct > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
-                color: card.growthPct > 0 ? card.color : "#ff8080",
-              }}
+              className="font-mono-num font-extrabold px-2 py-0.5 rounded-full text-[10px] leading-none shrink-0"
+              style={
+                rank === 1
+                  ? { background: "var(--volt)", color: "#000" }
+                  : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }
+              }
             >
-              {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
+              TOP {rank}
             </span>
-          )}
+            <span className="text-[10px] font-cond font-bold text-ink-3">
+              {category === "upper" ? "상체" : "하체"}
+            </span>
+            {card.growthPct !== 0 && (
+              <span
+                className="font-mono-num font-bold px-1.5 py-0.5 rounded text-[9px] leading-none"
+                style={{
+                  background: card.growthPct > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
+                  color: card.growthPct > 0 ? card.color : "#ff8080",
+                }}
+              >
+                {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
+              </span>
+            )}
+          </div>
+          <p className="font-bold text-ink-0 text-sm truncate">
+            {card.isReverse ? "⬆ " : ""}{card.name}
+          </p>
         </div>
 
-        <p className="font-bold text-ink-0 text-sm truncate">
-          {card.isReverse ? "⬆ " : ""}{card.name}
-        </p>
-
-        <div className="flex items-baseline gap-1.5 flex-wrap">
-          <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
-          <span className="text-ink-4 text-[11px]">➔</span>
-          <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 17 }}>
-            {card.current}
-          </span>
-          <span className="text-[10px] font-cond font-bold text-ink-4">{unit}</span>
-          {card.growth !== 0 && (
-            <span className="font-mono-num font-bold ml-1" style={{ fontSize: 11, color: card.color }}>
-              {card.growth > 0 ? "+" : ""}{card.growth}{unit} {card.growth > 0 ? "증량" : "조정"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* 우측: 연속 갱신 뱃지 + 스파크라인 */}
-      <div className="flex flex-col items-end gap-2 shrink-0" style={{ width: 108 }}>
         {card.streak >= 2 ? (
           <span
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-cond font-bold leading-none whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none shrink-0 whitespace-nowrap"
             style={{ background: "rgba(255,140,0,0.1)", color: "var(--warn)", border: "1px solid rgba(255,140,0,0.25)" }}
           >
-            <Flame size={10} className="shrink-0" />
+            <Flame size={11} className="shrink-0" />
             {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
           </span>
         ) : (
-          <span className="text-[9px] font-cond text-ink-4 leading-none whitespace-nowrap">
+          <span className="text-[9px] font-cond text-ink-4 leading-none shrink-0 whitespace-nowrap pt-1">
             최근 갱신 {card.lastDate.slice(5)}
           </span>
         )}
-        <div className="w-full" style={{ height: 36 }}>
+      </div>
+
+      {/* 시작 ➔ 현재 서사 */}
+      <div
+        className="flex items-baseline gap-1.5 flex-wrap rounded-2xl px-3 py-2.5"
+        style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
+      >
+        <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
+        <span className="text-ink-4 text-[11px]">➔</span>
+        <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 18 }}>
+          {card.current}
+        </span>
+        <span className="text-[10px] font-cond font-bold text-ink-4">{unit}</span>
+        {card.growth !== 0 && (
+          <span className="font-mono-num font-bold ml-auto" style={{ fontSize: 11, color: card.color }}>
+            {card.growth > 0 ? "+" : ""}{card.growth}{unit} {card.growth > 0 ? "성장 달성" : "조정"}
+          </span>
+        )}
+      </div>
+
+      {/* 와이드 스파크라인 차트 */}
+      <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
+        <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-1 px-0.5">
+          <span>최근 증량 궤적</span>
+          <span style={{ color: card.color }}>최고 {card.current}{unit}</span>
+        </div>
+        <div className="w-full" style={{ height: 80 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={card.data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+            <AreaChart data={card.data} margin={{ top: 8, right: 10, left: 10, bottom: 2 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={card.color} stopOpacity={0.4} />
                   <stop offset="100%" stopColor={card.color} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <Area type="monotone" dataKey="val" stroke={card.color} strokeWidth={2}
-                fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
+              <Area
+                type="monotone"
+                dataKey="val"
+                stroke={card.color}
+                strokeWidth={2.5}
+                fill={`url(#${gradId})`}
+                dot={{ r: 3, fill: card.color, stroke: "#000", strokeWidth: 1.5 }}
+                isAnimationActive={false}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* 세션별 실제 수행 내역 아코디언 토글 */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="tap-haptic w-full flex items-center justify-between py-1 px-0.5"
+      >
+        <div className="flex items-center gap-1.5">
+          <Clock size={13} style={{ color: card.color }} />
+          <span className="text-xs font-cond font-bold text-ink-3">
+            세션별 실제 수행 상세 내역 ({card.logs.length}회 기록)
+          </span>
+        </div>
+        {expanded ? (
+          <ChevronUp size={15} className="text-ink-3" />
+        ) : (
+          <ChevronDown size={15} className="text-ink-3" />
+        )}
+      </button>
+
+      {/* 펼쳐지는 세부 기록 리스트 */}
+      {expanded && (
+        <div className="flex flex-col gap-1.5 pt-1" style={{ borderTop: "1px solid var(--pt-5)" }}>
+          {card.logs.map((log, idx) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between rounded-xl px-3 py-2 text-xs"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
+            >
+              <span className="text-ink-3 font-cond font-semibold">{log.date}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono-num font-bold text-ink-0">
+                  {log.actualWeight}kg × {log.reps}회
+                </span>
+                <span
+                  className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full"
+                  style={{ background: `${card.color}1A`, color: card.color }}
+                >
+                  {card.isReverse ? `점수 ${log.scoreKg}pt` : `1RM ${log.scoreKg}kg`}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
