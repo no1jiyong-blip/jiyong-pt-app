@@ -74,6 +74,15 @@ export function computeTrainingVolumeTons(
   return Math.round((totalKg / 1000) * 10) / 10;
 }
 
+/** 전체 평균 퍼센타일(0~100)을 알파벳 등급으로 변환 (TIER와는 별개 — 종합 성취도 뱃지용) */
+export function computeOverallGrade(avgPercentile: number): string {
+  if (avgPercentile >= 90) return "A+";
+  if (avgPercentile >= 75) return "A";
+  if (avgPercentile >= 60) return "B+";
+  if (avgPercentile >= 40) return "B";
+  return "C";
+}
+
 /** 전체 평균 퍼센타일(0~100)을 등급 레이블로 변환 */
 export function computeTier(avgPercentile: number): { label: string; sub: "I" | "II" } {
   const bands: { min: number; max: number; label: string }[] = [

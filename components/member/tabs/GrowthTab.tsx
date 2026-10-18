@@ -13,7 +13,7 @@ import {
   calcOneRM,
   getAgeGroup,
 } from "@/lib/types";
-import { computeOneRMProgress, computeTrainingVolumeTons, computeTier } from "@/lib/growth";
+import { computeOneRMProgress, computeTrainingVolumeTons, computeTier, computeOverallGrade } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
@@ -174,6 +174,7 @@ export function GrowthTab({
     [sessions, recordsBySession]
   );
   const tier = useMemo(() => computeTier(overall.avg), [overall.avg]);
+  const grade = useMemo(() => computeOverallGrade(overall.avg), [overall.avg]);
 
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2">
@@ -193,6 +194,7 @@ export function GrowthTab({
             gender={member.gender}
             ageGroup={ageGroup}
             tier={tier}
+            grade={grade}
             totalGainKg={totalGainKg}
             volumeTons={volumeTons}
           />
@@ -309,32 +311,9 @@ export function GrowthTab({
                     sessions={sessions}
                     recordsBySession={recordsBySession}
                     startDate={member.session_start_date}
+                    goalKg={benchmarks.find((b) => b.exercise_name === selectedEx)?.advanced_kg}
                     bare
                   />
-
-                  {(() => {
-                    const p = liftProgress.get(selectedEx);
-                    const goalKg = benchmarks.find((b) => b.exercise_name === selectedEx)?.advanced_kg;
-                    if (!p?.first || !p?.latest || !goalKg || goalKg <= p.first.orm) return null;
-                    const ratio = Math.max(
-                      0,
-                      Math.min(100, Math.round(((p.latest.orm - p.first.orm) / (goalKg - p.first.orm)) * 100))
-                    );
-                    return (
-                      <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
-                        <div className="flex items-center justify-between text-[11px] font-cond font-bold mb-2">
-                          <span className="text-ink-3">목표 달성도</span>
-                          <span className="font-mono-num" style={{ color: cfg.color }}>{ratio}%</span>
-                        </div>
-                        <div className="w-full rounded-full overflow-hidden" style={{ height: 10, background: "var(--pt-4)" }}>
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${ratio}%`, background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })()}
 
                   <HeroSBDChart
                     sessions={sessions}
@@ -397,6 +376,7 @@ function TotalStrengthRank({
   gender,
   ageGroup,
   tier,
+  grade,
   totalGainKg,
   volumeTons,
 }: {
@@ -405,6 +385,7 @@ function TotalStrengthRank({
   gender: "male" | "female" | null;
   ageGroup: ReturnType<typeof getAgeGroup>;
   tier: { label: string; sub: "I" | "II" };
+  grade: string;
   totalGainKg: number;
   volumeTons: number;
 }) {
@@ -438,9 +419,17 @@ function TotalStrengthRank({
           <p className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none">
             TOTAL STRENGTH RANK
           </p>
-          <p className="font-cond font-bold text-ink-0 text-sm leading-none">
-            {tier.label} {tier.sub}
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-cond font-bold text-ink-0 text-sm leading-none">
+              {tier.label} {tier.sub}
+            </p>
+            <span
+              className="font-cond font-bold px-1.5 py-0.5 rounded text-[10px] leading-none uppercase"
+              style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
+            >
+              GRADE {grade}
+            </span>
+          </div>
         </div>
         {demoLabel && (
           <span

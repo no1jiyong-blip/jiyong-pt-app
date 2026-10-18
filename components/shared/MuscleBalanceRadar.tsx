@@ -107,15 +107,9 @@ export function MuscleBalanceRadar({
     ];
   }, [sessions, recordsBySession, qualities]);
 
-  /* 종합 균형 등급 — 각 축의 '나' 점수가 목표 대비 얼마나 근접한지 평균 */
-  const grade = useMemo(() => {
-    const ratios = data.map((d) => d.you / d.target);
-    const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
-    if (avg >= 1.05) return "A+";
-    if (avg >= 0.95) return "A";
-    if (avg >= 0.85) return "B+";
-    if (avg >= 0.7) return "B";
-    return "C";
+  /* 종합 밸런스 포인트 — 각 축 '나' 점수의 단순 평균 (등급 표기는 TOTAL STRENGTH RANK로 이동) */
+  const balanceAvg = useMemo(() => {
+    return Math.round(data.reduce((a, d) => a + d.you, 0) / data.length);
   }, [data]);
 
   /* 가장 강한 축 / 목표 대비 가장 많이 부족한 축 */
@@ -146,7 +140,7 @@ export function MuscleBalanceRadar({
           className="font-cond font-bold px-2.5 py-1 rounded-full text-[10px] leading-none shrink-0 uppercase"
           style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
         >
-          GRADE {grade}
+          밸런스 {balanceAvg} PT
         </span>
       </div>
 

@@ -15,6 +15,8 @@ interface Props {
   startDate?: string | null;
   /** true면 바깥 pt-card 래퍼 없이 내용만 렌더링 (다른 카드 안에 중첩할 때) */
   bare?: boolean;
+  /** ACSM 벤치마크 기준 다음 등급 목표 중량 — 있으면 시작/현재/목표 통합 바로 표시 */
+  goalKg?: number;
 }
 
 interface PRPoint {
@@ -32,6 +34,7 @@ export function OneRMReportCard({
   sessions,
   recordsBySession,
   bare = false,
+  goalKg,
 }: Props) {
   const { latest, previous, first, allPRs, totalGrowthKg, totalGrowthPct } =
     useMemo(() => {
@@ -244,38 +247,83 @@ export function OneRMReportCard({
             </div>
           </div>
 
-          {/* 처음 vs 지금 바 — 트랙 하나 안에 안전하게 (% 기반, 화면 밖으로 안 나감) */}
-          <div
-            className="rounded-2xl p-3"
-            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
-          >
-            <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-2">
-              <span>시작 {first.orm}kg</span>
-              <span style={{ color }}>현재 {latest.orm}kg</span>
-            </div>
+          {/* 시작/현재/목표 통합 마일스톤 바 — 트랙 하나 안에 안전하게 (% 기반, 화면 밖으로 안 나감) */}
+          {goalKg && goalKg > first.orm ? (
             <div
-              className="relative rounded-full overflow-hidden"
-              style={{ height: 10, width: "100%", background: "var(--pt-4)" }}
+              className="rounded-2xl p-3"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
             >
+              <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-2">
+                <span>시작 {first.orm}kg</span>
+                <span style={{ color }}>현재 {latest.orm}kg</span>
+                <span className="text-ink-4">목표 {goalKg}kg</span>
+              </div>
               <div
-                className="absolute inset-y-0 left-0 rounded-full"
-                style={{
-                  width: "100%",
-                  background: `linear-gradient(90deg, ${color}50 0%, ${color} 100%)`,
-                  boxShadow: `0 0 10px ${glow}`,
-                }}
-              />
-              {/* 시작 지점 마커 */}
-              <div
-                className="absolute top-0 bottom-0"
-                style={{
-                  left: `${Math.min(96, Math.round((first.orm / latest.orm) * 100))}%`,
-                  width: 2,
-                  background: "rgba(0,0,0,0.6)",
-                }}
-              />
+                className="relative rounded-full overflow-hidden"
+                style={{ height: 10, width: "100%", background: "var(--pt-4)" }}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{
+                    width: `${Math.min(100, Math.round((latest.orm / goalKg) * 100))}%`,
+                    background: `linear-gradient(90deg, ${color}50 0%, ${color} 100%)`,
+                    boxShadow: `0 0 10px ${glow}`,
+                  }}
+                />
+                {/* 시작 지점 마커 */}
+                <div
+                  className="absolute top-0 bottom-0"
+                  style={{
+                    left: `${Math.min(98, Math.round((first.orm / goalKg) * 100))}%`,
+                    width: 2,
+                    background: "rgba(0,0,0,0.6)",
+                  }}
+                />
+                {/* 목표 지점 마커 */}
+                <div
+                  className="absolute top-0 bottom-0"
+                  style={{ right: 0, width: 2, background: "rgba(255,255,255,0.4)" }}
+                />
+              </div>
+              <div className="flex justify-end mt-1.5">
+                <span className="text-[9px] font-mono-num font-bold" style={{ color }}>
+                  목표 달성도 {Math.max(0, Math.min(100, Math.round(((latest.orm - first.orm) / (goalKg - first.orm)) * 100)))}%
+                </span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div
+              className="rounded-2xl p-3"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
+            >
+              <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-2">
+                <span>시작 {first.orm}kg</span>
+                <span style={{ color }}>현재 {latest.orm}kg</span>
+              </div>
+              <div
+                className="relative rounded-full overflow-hidden"
+                style={{ height: 10, width: "100%", background: "var(--pt-4)" }}
+              >
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{
+                    width: "100%",
+                    background: `linear-gradient(90deg, ${color}50 0%, ${color} 100%)`,
+                    boxShadow: `0 0 10px ${glow}`,
+                  }}
+                />
+                {/* 시작 지점 마커 */}
+                <div
+                  className="absolute top-0 bottom-0"
+                  style={{
+                    left: `${Math.min(96, Math.round((first.orm / latest.orm) * 100))}%`,
+                    width: 2,
+                    background: "rgba(0,0,0,0.6)",
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* PR 타임라인 */}
           {allPRs.length >= 3 && (
