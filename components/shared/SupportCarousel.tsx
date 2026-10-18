@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight, Flame } from "lucide-react";
+import { Flame } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -39,6 +39,7 @@ interface Props {
 interface ExerciseCard {
   name: string;
   color: string;
+  start: number;
   current: number;
   growth: number;
   growthPct: number;
@@ -107,12 +108,12 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         }
         if (sessionMax.length > 0) streak += 1; // 가장 최근 기록 자체도 포함
 
+        const start = sessionMax[0]?.val ?? 0;
         const current = sessionMax[sessionMax.length - 1].val;
         const pastVal =
           (sessionMax.find((p) => p.rawDate >= fwa) ?? sessionMax[0]).val;
-        const growth = isReverse
-          ? 0
-          : Math.round(current - (sessionMax[0]?.val ?? 0));
+        // 역산 종목(풀업 등)도 이미 변환된 점수 기준이라 동일하게 시작 대비 증가분 계산
+        const growth = Math.round(current - start);
         const growthPct =
           pastVal > 0
             ? Math.round(((current - pastVal) / pastVal) * 100 * 10) / 10
@@ -121,6 +122,7 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         return {
           name: ex,
           color: tab === "upper" ? "#94a3b8" : "#7dd3fc",
+          start: Math.round(start),
           current: Math.round(current),
           growth,
           growthPct,
@@ -131,8 +133,9 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         } as ExerciseCard;
       })
       .filter((c): c is ExerciseCard => c !== null)
-      // 성장 폭 큰 종목 순으로 정렬
-      .sort((a, b) => Math.abs(b.growthPct) - Math.abs(a.growthPct));
+      // 성장 폭 큰 종목 순으로 정렬 — TOP 3만 노출
+      .sort((a, b) => Math.abs(b.growthPct) - Math.abs(a.growthPct))
+      .slice(0, 3);
   }, [sessions, recordsBySession, exercises, tab]);
 
   return (
@@ -141,10 +144,10 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
       <div className="flex items-end justify-between gap-3">
         <div className="flex flex-col gap-2">
           <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
-            SUPPORT
+            SUPPORT EXERCISES
           </span>
           <p className="text-[11px] font-cond text-ink-3 leading-none">
-            보조 종목 · 성장 폭 큰 순 정렬
+            보조 종목 성장 순위 (TOP 3)
           </p>
         </div>
       </div>
@@ -180,16 +183,16 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         ))}
       </div>
 
-      {/* 카드 그리드 */}
+      {/* TOP 3 랭킹 리스트 (1열 풀 너비) */}
       {cards.length === 0 ? (
         <div className="pt-card text-center py-6">
           <p className="text-ink-3 font-cond text-sm">해당 종목 기록이 없습니다</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3">
           {/* key={card.name} — React 고유 번호표 */}
-          {cards.map((card) => (
-            <SupportCard key={card.name} card={card} category={tab} />
+          {cards.map((card, i) => (
+            <SupportRankCard key={card.name} rank={i + 1} card={card} category={tab} />
           ))}
         </div>
       )}
@@ -198,87 +201,103 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   단일 카드 컴포넌트
+   단일 랭킹 카드 컴포넌트 — TOP N 뱃지 + 시작➔현재 서사 + 스파크라인
    ═══════════════════════════════════════════════════════════════ */
-function SupportCard({ card, category }: { card: ExerciseCard; category: "upper" | "lower" }) {
+function SupportRankCard({
+  rank,
+  card,
+  category,
+}: {
+  rank: number;
+  card: ExerciseCard;
+  category: "upper" | "lower";
+}) {
   // linearGradient id — 카드별로 고유하게 (한글 종목명 → ASCII 변환)
   const gradId = `sg-${card.name.replace(/\s/g, "_").replace(/[^\w]/g, "")}`;
+  const unit = card.isReverse ? "pt" : "kg";
 
   return (
     <div
-      className="flex flex-col justify-between gap-3"
-      style={{
-        background: "rgba(20,20,20,0.6)",
-        border: "1px solid var(--pt-5)",
-        borderRadius: 18,
-        padding: 16,
-      }}
+      className="pt-card flex items-center justify-between gap-3"
+      style={{ padding: 18 }}
     >
-      {/* 헤더 */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1.5 min-w-0">
+      {/* 좌측: 순위/카테고리/성장률 + 종목명 + 시작➔현재 서사 */}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span
-            className="text-[9px] font-cond font-bold uppercase tracking-wider leading-none w-fit px-1.5 py-0.5 rounded"
-            style={{ background: "var(--pt-3)", color: "var(--ink-3)", border: "1px solid var(--pt-5)" }}
+            className="font-mono-num font-extrabold px-2 py-0.5 rounded-full text-[10px] leading-none shrink-0"
+            style={
+              rank === 1
+                ? { background: "var(--volt)", color: "#000" }
+                : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }
+            }
           >
+            TOP {rank}
+          </span>
+          <span className="text-[10px] font-cond font-bold text-ink-3">
             {category === "upper" ? "상체" : "하체"}
           </span>
-          <p className="font-bold text-ink-0 text-sm truncate">
-            {card.isReverse ? "⬆ " : ""}{card.name}
-          </p>
+          {card.growthPct !== 0 && (
+            <span
+              className="font-mono-num font-bold px-1.5 py-0.5 rounded text-[9px] leading-none"
+              style={{
+                background: card.growthPct > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
+                color: card.growthPct > 0 ? card.color : "#ff8080",
+              }}
+            >
+              {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
+            </span>
+          )}
         </div>
-        {card.growthPct !== 0 && (
+
+        <p className="font-bold text-ink-0 text-sm truncate">
+          {card.isReverse ? "⬆ " : ""}{card.name}
+        </p>
+
+        <div className="flex items-baseline gap-1.5 flex-wrap">
+          <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
+          <span className="text-ink-4 text-[11px]">➔</span>
+          <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 17 }}>
+            {card.current}
+          </span>
+          <span className="text-[10px] font-cond font-bold text-ink-4">{unit}</span>
+          {card.growth !== 0 && (
+            <span className="font-mono-num font-bold ml-1" style={{ fontSize: 11, color: card.color }}>
+              {card.growth > 0 ? "+" : ""}{card.growth}{unit} {card.growth > 0 ? "증량" : "조정"}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 우측: 연속 갱신 뱃지 + 스파크라인 */}
+      <div className="flex flex-col items-end gap-2 shrink-0" style={{ width: 108 }}>
+        {card.streak >= 2 ? (
           <span
-            className="font-mono-num font-bold px-2 py-1 rounded-full text-[10px] leading-none shrink-0"
-            style={{
-              background: card.growthPct > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
-              color: card.growthPct > 0 ? card.color : "#ff8080",
-              border: `1px solid ${card.growthPct > 0 ? card.color : "#ff8080"}40`,
-            }}
+            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-cond font-bold leading-none whitespace-nowrap"
+            style={{ background: "rgba(255,140,0,0.1)", color: "var(--warn)", border: "1px solid rgba(255,140,0,0.25)" }}
           >
-            {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
+            <Flame size={10} className="shrink-0" />
+            {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
           </span>
-        )}
-      </div>
-
-      {/* 현재 수치 + 성장량 */}
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 26 }}>
-          {card.current}
-        </span>
-        <span className="text-xs text-ink-3 font-cond">{card.isReverse ? "pt" : "kg"}</span>
-        {!card.isReverse && card.growth > 0 && (
-          <span className="font-mono-num font-bold ml-auto" style={{ fontSize: 11, color: card.color }}>
-            +{card.growth}kg 성장
-          </span>
-        )}
-      </div>
-
-      {/* 미니 스파크라인 */}
-      <ResponsiveContainer width="100%" height={44}>
-        <AreaChart data={card.data} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={card.color} stopOpacity={0.4} />
-              <stop offset="100%" stopColor={card.color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area type="monotone" dataKey="val" stroke={card.color} strokeWidth={2}
-            fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
-        </AreaChart>
-      </ResponsiveContainer>
-
-      {/* 푸터 */}
-      <div className="flex items-center justify-between gap-2 pt-2 text-[10px] font-cond text-ink-3 leading-none"
-        style={{ borderTop: "1px solid var(--pt-5)" }}>
-        <span className="truncate">
-          {card.streak >= 2 ? `최근 ${card.streak}회 연속 ${card.isReverse ? "강도 향상" : "증량"} 중` : `최근 갱신 ${card.lastDate.slice(5)}`}
-        </span>
-        {card.streak >= 3 ? (
-          <Flame size={13} className="shrink-0" style={{ color: card.color }} />
         ) : (
-          <ChevronRight size={12} className="text-ink-4 shrink-0" />
+          <span className="text-[9px] font-cond text-ink-4 leading-none whitespace-nowrap">
+            최근 갱신 {card.lastDate.slice(5)}
+          </span>
         )}
+        <div className="w-full" style={{ height: 36 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={card.data} margin={{ top: 2, right: 2, left: 2, bottom: 2 }}>
+              <defs>
+                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={card.color} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={card.color} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="val" stroke={card.color} strokeWidth={2}
+                fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );
