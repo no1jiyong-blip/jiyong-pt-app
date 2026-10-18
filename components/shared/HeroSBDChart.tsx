@@ -168,6 +168,63 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
   );
 }
 
+/** 회원 친화적 커스텀 툴팁 — 실제 기록 vs 미래 예측을 구분해서 쉬운 말로 설명 */
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  color,
+}: {
+  active?: boolean;
+  payload?: { dataKey?: string; value?: number | null }[];
+  label?: string;
+  color: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const entry =
+    payload.find((p) => p.dataKey === "orm" && p.value != null) ??
+    payload.find((p) => p.dataKey === "proj" && p.value != null);
+  if (!entry || entry.value == null) return null;
+  const isProjected = entry.dataKey === "proj";
+
+  return (
+    <div
+      className="rounded-2xl px-3.5 py-2.5"
+      style={{
+        background: "rgba(10,10,10,0.95)",
+        border: `1px solid ${color}60`,
+        backdropFilter: "blur(12px)",
+        minWidth: 150,
+      }}
+    >
+      <div
+        className="flex items-center justify-between gap-2 pb-1.5 mb-2"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
+      >
+        <span className="text-[11px] font-cond font-bold text-ink-2">
+          {isProjected ? `성장 예측 (${label})` : `${label} 세션 기록`}
+        </span>
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: color, boxShadow: `0 0 6px ${color}` }}
+        />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-cond font-semibold text-ink-3">
+          {isProjected ? "예상 도달 근력" : "1회 최대 근력"}
+        </span>
+        <span className="font-mono-num font-extrabold text-sm" style={{ color }}>
+          {entry.value}
+          <span className="text-[10px] text-ink-0 ml-0.5">KG</span>
+        </span>
+      </div>
+      <p className="text-[9px] text-ink-4 leading-tight pt-1">
+        {isProjected ? "※ 현재 성장 추세 유지 시 예상치" : "※ 해당 세션 최고 1RM 기준 (Brzycki 공식)"}
+      </p>
+    </div>
+  );
+}
+
 interface ChartItem {
   name: string;
   color: string;
@@ -236,15 +293,8 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             tickLine={false}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: "rgba(8,8,8,0.96)",
-              border: `1px solid ${chart.color}60`,
-              borderRadius: 10,
-              fontFamily: "Barlow Condensed",
-              fontSize: 12,
-              backdropFilter: "blur(8px)",
-            }}
-            labelStyle={{ color: "#888", marginBottom: 4 }}
+            content={(props) => <ChartTooltip {...props} color={chart.color} />}
+            cursor={{ stroke: chart.color, strokeOpacity: 0.25 }}
           />
           {chart.ghostKg && (
             <ReferenceLine
@@ -305,48 +355,38 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* 메트릭 */}
+      {/* 메트릭 — 총 성장(+Nkg)은 OneRMReportCard에 이미 표시되므로 중복 생략, PR 갱신 상황 + 목표 잔여량만 */}
       <div className="flex items-center justify-between gap-3 pt-3 border-t border-pt-5 flex-wrap">
-        <div className="flex gap-4">
-          {chart.totalGrowth > 0 && (
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[9px] font-cond text-ink-3 uppercase tracking-wider leading-none">성장</span>
-              <span className="font-display leading-none tabular-nums"
-                style={{ color: chart.color, fontSize: 15 }}>
-                +{chart.totalGrowth}kg
+        <div className="flex items-center gap-1.5">
+          {chart.streak >= 2 ? (
+            <>
+              <Award size={13} style={{ color: chart.color }} />
+              <span className="font-cond font-bold text-xs leading-none text-ink-0">
+                <span style={{ color: chart.color }}>{chart.streak}회 연속</span> 개인 최고 기록(PR) 경신
               </span>
-            </div>
-          )}
-          {chart.prCount > 0 && (
-            <div className="flex items-center gap-1.5">
+            </>
+          ) : chart.prCount > 0 ? (
+            <>
               <Trophy size={11} style={{ color: chart.color }} />
               <span className="font-cond font-bold leading-none" style={{ color: chart.color, fontSize: 11 }}>
                 PR × {chart.prCount}
               </span>
-            </div>
-          )}
+            </>
+          ) : null}
         </div>
         {chart.ghostKg && chart.current > 0 && chart.current < chart.ghostKg && (
           <span
-            className="px-3 py-1.5 rounded-full text-[10px] font-cond leading-none"
+            className="px-3 py-1.5 rounded-full text-[10px] font-cond font-semibold leading-none shrink-0"
             style={{
               background: `${chart.color}1A`,
               border: `1px solid ${chart.color}40`,
               color: chart.color,
             }}
           >
-            목표까지 {chart.ghostKg - chart.current}kg
+            목표까지 {chart.ghostKg - chart.current}kg 남음
           </span>
         )}
       </div>
-      {chart.streak >= 2 && (
-        <div className="flex items-center gap-1.5">
-          <Award size={11} style={{ color: chart.color }} />
-          <span className="font-cond font-bold text-[11px] leading-none" style={{ color: chart.color }}>
-            {chart.streak}회 연속 PR 갱신 중
-          </span>
-        </div>
-      )}
     </>
   );
 
