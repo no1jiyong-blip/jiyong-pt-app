@@ -87,19 +87,3 @@ export function computeTier(avgPercentile: number): { label: string; sub: "I" | 
   const posInBand = (avgPercentile - band.min) / Math.max(1, band.max - band.min);
   return { label: band.label, sub: posInBand >= 0.5 ? "II" : "I" };
 }
-
-/** 최근 N일 중 PT 수업이 있었던 날짜(완료/결석 모두) + 출석률 */
-export function computeAttendance(sessions: Session[], days = 28) {
-  const today = new Date();
-  const start = new Date(today);
-  start.setDate(start.getDate() - (days - 1));
-  const startISO = start.toISOString().slice(0, 10);
-  const todayISO = today.toISOString().slice(0, 10);
-
-  const inRange = sessions.filter((s) => s.date >= startISO && s.date <= todayISO && s.status !== "scheduled");
-  const completed = inRange.filter((s) => s.status === "completed");
-  const attendedDates = new Set(completed.map((s) => s.date));
-  const rate = inRange.length > 0 ? Math.round((completed.length / inRange.length) * 100) : 0;
-
-  return { attendedDates, completedCount: completed.length, totalCount: inRange.length, rate, startISO, days };
-}

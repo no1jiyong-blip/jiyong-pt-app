@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dumbbell, Activity, BarChart3, TrendingUp, Scale, CalendarCheck2 } from "lucide-react";
+import { Dumbbell, Activity, BarChart3, TrendingUp, Scale } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   type Member,
@@ -13,7 +13,7 @@ import {
   calcOneRM,
   getAgeGroup,
 } from "@/lib/types";
-import { computeOneRMProgress, computeTrainingVolumeTons, computeTier, computeAttendance } from "@/lib/growth";
+import { computeOneRMProgress, computeTrainingVolumeTons, computeTier } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
@@ -174,7 +174,6 @@ export function GrowthTab({
     [sessions, recordsBySession]
   );
   const tier = useMemo(() => computeTier(overall.avg), [overall.avg]);
-  const attendance = useMemo(() => computeAttendance(sessions, 28), [sessions]);
 
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2">
@@ -356,49 +355,6 @@ export function GrowthTab({
               recordsBySession={recordsBySession}
             />
           </div>
-
-          {/* ④ 출석 꾸준함 — 최근 28일 */}
-          {attendance.totalCount > 0 && (
-            <div className="px-5">
-              <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <CalendarCheck2 size={14} className="text-volt" />
-                    <span className="font-cond font-bold text-ink-0 tracking-wider uppercase leading-none" style={{ fontSize: 11 }}>
-                      최근 28일 출석
-                    </span>
-                  </div>
-                  <span className="font-mono-num font-bold text-volt text-xs">
-                    출석률 {attendance.rate}% ({attendance.completedCount}/{attendance.totalCount}회)
-                  </span>
-                </div>
-
-                <div
-                  className="grid grid-cols-7 gap-1.5 p-3 rounded-2xl"
-                  style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}
-                >
-                  {Array.from({ length: attendance.days }).map((_, i) => {
-                    const d = new Date(attendance.startISO);
-                    d.setDate(d.getDate() + i);
-                    const iso = d.toISOString().slice(0, 10);
-                    const attended = attendance.attendedDates.has(iso);
-                    return (
-                      <div
-                        key={iso}
-                        title={iso}
-                        className="rounded-md"
-                        style={{
-                          height: 20,
-                          background: attended ? "var(--volt)" : "var(--pt-4)",
-                          boxShadow: attended ? "0 0 8px var(--volt-glow-2)" : undefined,
-                        }}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
