@@ -171,9 +171,8 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         } as ExerciseCard;
       })
       .filter((c): c is ExerciseCard => c !== null)
-      // 성장 폭 큰 종목 순으로 정렬 — TOP 3만 노출
-      .sort((a, b) => Math.abs(b.growthPct) - Math.abs(a.growthPct))
-      .slice(0, 3);
+      // 성장 폭 큰 종목 순으로 정렬 — 기록 있는 종목 전부 랭킹으로 노출
+      .sort((a, b) => Math.abs(b.growthPct) - Math.abs(a.growthPct));
   }, [sessions, recordsBySession, exercises, tab]);
 
   return (
@@ -185,7 +184,7 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
             SUPPORT EXERCISES
           </span>
           <p className="text-[11px] font-cond text-ink-3 leading-none">
-            보조 종목 성장 순위 (TOP 3)
+            보조 종목 성장 순위 리포트
           </p>
         </div>
       </div>
@@ -221,7 +220,7 @@ export function SupportCarousel({ sessions, recordsBySession }: Props) {
         ))}
       </div>
 
-      {/* TOP 3 랭킹 리스트 (1열 풀 너비) */}
+      {/* 성장률 랭킹 리스트 (1열 풀 너비) */}
       {cards.length === 0 ? (
         <div className="pt-card text-center py-6">
           <p className="text-ink-3 font-cond text-sm">해당 종목 기록이 없습니다</p>
@@ -329,7 +328,15 @@ function SupportRankCard({
         </span>
         <span className="text-[10px] font-cond font-bold text-ink-4">{unit}</span>
         {card.growth !== 0 && (
-          <span className="font-mono-num font-bold ml-auto" style={{ fontSize: 11, color: card.color }}>
+          <span
+            className="font-mono-num font-bold ml-auto px-2 py-0.5 rounded-md"
+            style={{
+              fontSize: 11,
+              color: card.growth > 0 ? card.color : "#ff8080",
+              background: card.growth > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
+              border: `1px solid ${card.growth > 0 ? card.color : "#ff8080"}40`,
+            }}
+          >
             {card.growth > 0 ? "+" : ""}{card.growth}{unit} {card.growth > 0 ? "성장 달성" : "조정"}
           </span>
         )}
@@ -341,9 +348,9 @@ function SupportRankCard({
           <span>최근 증량 궤적</span>
           <span style={{ color: card.color }}>최고 {card.current}{unit}</span>
         </div>
-        <div className="w-full" style={{ height: 80 }}>
+        <div className="w-full" style={{ height: 96 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={card.data} margin={{ top: 8, right: 10, left: 10, bottom: 2 }}>
+            <AreaChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
               <defs>
                 <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={card.color} stopOpacity={0.4} />
@@ -356,7 +363,7 @@ function SupportRankCard({
                 stroke={card.color}
                 strokeWidth={2.5}
                 fill={`url(#${gradId})`}
-                dot={{ r: 3, fill: card.color, stroke: "#000", strokeWidth: 1.5 }}
+                dot={{ r: 3.5, fill: card.color, stroke: "#000", strokeWidth: 1.5 }}
                 isAnimationActive={false}
               />
             </AreaChart>
