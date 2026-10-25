@@ -34,6 +34,8 @@ const PULLUP_NAMES = ["풀업머신", "풀업"];
 interface Props {
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
+  /** 메인 3대 운동(성별별 SBD)과 이름이 겹치는 보조 종목은 중복 집계되지 않도록 제외 */
+  excludeNames?: string[];
 }
 
 interface SupportLog {
@@ -60,11 +62,13 @@ interface ExerciseCard {
 /* ═══════════════════════════════════════════════════════════════
    Named Export — GrowthTab 등에서 { SupportCarousel }로 import
    ═══════════════════════════════════════════════════════════════ */
-export function SupportCarousel({ sessions, recordsBySession }: Props) {
+export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] }: Props) {
   const [tab, setTab] = useState<"upper" | "lower">("upper");
   const [expandedName, setExpandedName] = useState<string | null>(null);
 
-  const exercises = tab === "upper" ? UPPER_EXERCISES : LOWER_EXERCISES;
+  const exercises = (tab === "upper" ? UPPER_EXERCISES : LOWER_EXERCISES).filter(
+    (ex) => !excludeNames.includes(ex)
+  );
 
   /* ─── 종목별 카드 데이터 계산 ─── */
   const cards: ExerciseCard[] = useMemo(() => {

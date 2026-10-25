@@ -838,6 +838,11 @@ function WorkoutTab({
             <SupportCarousel
               sessions={sessions}
               recordsBySession={recordsBySession}
+              excludeNames={
+                member.gender === "female"
+                  ? ["스쿼트", "데드리프트", "숄더프레스"]
+                  : ["스쿼트", "데드리프트", "벤치프레스"]
+              }
             />
           </div>
         </section>

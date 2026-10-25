@@ -177,7 +177,7 @@ export function GrowthTab({
   const grade = useMemo(() => computeOverallGrade(overall.avg), [overall.avg]);
 
   return (
-    <div className="anim-tab-slide flex flex-col gap-7 pt-2">
+    <div className="anim-tab-slide flex flex-col gap-7 pt-2 pb-32">
       <Confetti trigger={confettiKey} count={32} />
 
       {/* 헤더 */}
@@ -332,6 +332,7 @@ export function GrowthTab({
             <SupportCarousel
               sessions={sessions}
               recordsBySession={recordsBySession}
+              excludeNames={sbdConfig.map((e) => e.name)}
             />
           </div>
         </div>
