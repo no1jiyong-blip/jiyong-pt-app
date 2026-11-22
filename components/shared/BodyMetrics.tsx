@@ -338,6 +338,15 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                 bare
               />
             )}
+
+            {/* 동년배 표준 기준 비교표 */}
+            <BenchmarkTable
+              gender={g}
+              ageGroup={ageGroup}
+              smmKg={latest.skeletal_muscle_kg}
+              bfPct={latest.body_fat_pct}
+              whr={latest.whr}
+            />
           </div>
         </section>
       )}
@@ -822,6 +831,126 @@ function MetricCard({
           </ResponsiveContainer>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * 동년배 표준 기준 비교표 — 내 수치 / 추정 평균 / 이상적 기준(Good 등급) / 평균 대비
+ * "추정 평균"은 실측 인구 평균이 아니라 ACSM/WHO Good~Fair 구간의 중간값으로 근사한 값
+ * (과장 방지를 위해 표 하단에 근거를 명시)
+ */
+function BenchmarkTable({
+  gender, ageGroup, smmKg, bfPct, whr,
+}: {
+  gender: "male" | "female";
+  ageGroup: "20s" | "30s" | "40s" | "50s";
+  smmKg: number | null;
+  bfPct: number | null;
+  whr: number | null;
+}) {
+  const bfRef = ACSM_BF[gender][ageGroup];
+  const smmRef = TARGET_SMM[gender];
+  const whrRef = WHR_BANDS[gender];
+
+  const rows: {
+    key: string;
+    label: string;
+    current: number | null;
+    unit: string;
+    avgEstimate: number;
+    ideal: string;
+    higherIsBetter: boolean;
+  }[] = [
+    {
+      key: "smm",
+      label: "골격근량",
+      current: smmKg,
+      unit: "kg",
+      avgEstimate: Math.round(((smmRef.good + smmRef.fair) / 2) * 10) / 10,
+      ideal: `${smmRef.good}kg 이상`,
+      higherIsBetter: true,
+    },
+    {
+      key: "bf",
+      label: "체지방률",
+      current: bfPct,
+      unit: "%",
+      avgEstimate: Math.round(((bfRef.good + bfRef.fair) / 2) * 10) / 10,
+      ideal: `${bfRef.elite}~${bfRef.good}%`,
+      higherIsBetter: false,
+    },
+    {
+      key: "whr",
+      label: "복부지방률",
+      current: whr,
+      unit: "",
+      avgEstimate: Math.round(((whrRef.good + whrRef.fair) / 2) * 100) / 100,
+      ideal: `${whrRef.good} 이하`,
+      higherIsBetter: false,
+    },
+  ];
+
+  const visibleRows = rows.filter((r) => r.current != null);
+  if (visibleRows.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-2xl p-4"
+      style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-cond font-black text-ink-0 tracking-wide">
+          동년배 표준 기준 비교표
+        </span>
+        <span className="text-[10px] font-cond text-ink-4">
+          {gender === "male" ? "남성" : "여성"} · {ageGroup} 기준
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="text-[9px] font-cond font-bold text-ink-4" style={{ borderBottom: "1px solid var(--pt-5)" }}>
+              <th className="pb-2 font-bold">항목</th>
+              <th className="pb-2 text-right font-bold">내 수치</th>
+              <th className="pb-2 text-right font-bold">추정 평균</th>
+              <th className="pb-2 text-right font-bold">이상적 기준</th>
+              <th className="pb-2 text-right font-bold">평균 대비</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.map((row) => {
+              const diff = Math.round(((row.current as number) - row.avgEstimate) * 100) / 100;
+              const isBetter = row.higherIsBetter ? diff > 0 : diff < 0;
+              const diffColor = diff === 0 ? "var(--ink-3)" : isBetter ? "var(--volt)" : "#ff8080";
+              return (
+                <tr key={row.key} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <td className="py-2 text-xs font-cond font-bold text-ink-2">{row.label}</td>
+                  <td className="py-2 text-right font-mono-num font-black text-ink-0 text-xs">
+                    {row.current}{row.unit}
+                  </td>
+                  <td className="py-2 text-right font-mono-num text-ink-3 text-xs">
+                    {row.avgEstimate}{row.unit}
+                  </td>
+                  <td className="py-2 text-right font-mono-num text-ink-2 text-xs">{row.ideal}</td>
+                  <td className="py-2 text-right">
+                    <span
+                      className="inline-block text-[10px] font-mono-num font-bold px-2 py-0.5 rounded"
+                      style={{ background: `${diffColor}1A`, color: diffColor }}
+                    >
+                      {diff > 0 ? "+" : ""}{diff}{row.unit}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[9px] font-cond text-ink-4 leading-relaxed mt-2.5">
+        ※ 추정 평균은 ACSM/WHO 등급 구간(Good~Fair)의 중간값으로 근사한 값이며, 실측 인구 평균 통계가 아닙니다.
+      </p>
     </div>
   );
 }
