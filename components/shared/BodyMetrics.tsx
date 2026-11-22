@@ -328,18 +328,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
               />
             )}
 
-            {/* 체형 포지션 맵 (4분면) */}
-            {latest.body_fat_pct != null && latest.skeletal_muscle_kg != null && (
-              <BodyShapeMap
-                bodyFatPct={latest.body_fat_pct}
-                smmKg={latest.skeletal_muscle_kg}
-                gender={g}
-                ageGroup={ageGroup}
-                bare
-              />
-            )}
-
-            {/* 동년배 표준 기준 비교표 */}
+            {/* 동일 연령대 표준 비교표 */}
             <BenchmarkTable
               gender={g}
               ageGroup={ageGroup}
@@ -867,7 +856,8 @@ function BenchmarkTable({
       label: "골격근량",
       current: smmKg,
       unit: "kg",
-      avgEstimate: Math.round(((smmRef.good + smmRef.fair) / 2) * 10) / 10,
+      // Fair 기준치보다 약간 낮은 지점을 "일반 평균"으로 근사 (퍼센타일 칩의 50% 기준점과 정합성 유지)
+      avgEstimate: Math.round((smmRef.fair - (smmRef.good - smmRef.fair) / 3) * 10) / 10,
       ideal: `${smmRef.good}kg 이상`,
       higherIsBetter: true,
     },
@@ -901,10 +891,10 @@ function BenchmarkTable({
     >
       <div className="flex items-center justify-between mb-3">
         <span className="text-[11px] font-cond font-black text-ink-0 tracking-wide">
-          동년배 표준 기준 비교표
+          동일 연령대 표준 비교표
         </span>
         <span className="text-[10px] font-cond text-ink-4">
-          {gender === "male" ? "남성" : "여성"} · {ageGroup} 기준
+          {ageGroup.replace("s", "")}대 {gender === "male" ? "남성" : "여성"} · ACSM 기준
         </span>
       </div>
 
@@ -1001,113 +991,6 @@ function BFGauge({
         <span>Fair ≤{ref.fair}%</span>
         <span className="text-danger">Poor</span>
       </div>
-    </div>
-  );
-}
-
-/* 체형 맵 — 골격근량 × 체지방률 4분면 포지션 맵 */
-function BodyShapeMap({
-  bodyFatPct, smmKg, gender, ageGroup, bare = false,
-}: {
-  bodyFatPct: number;
-  smmKg: number;
-  gender: "male" | "female";
-  ageGroup: "20s" | "30s" | "40s" | "50s";
-  bare?: boolean;
-}) {
-  const ref = ACSM_BF[gender][ageGroup];
-  const tgt = TARGET_SMM[gender];
-
-  // 맵 범위 정의
-  const xMin = gender === "male" ? 8  : 14;
-  const xMax = gender === "male" ? 36 : 42;
-  const yMin = gender === "male" ? 28 : 18;
-  const yMax = gender === "male" ? 44 : 30;
-
-  const xPct = ((bodyFatPct - xMin) / (xMax - xMin)) * 100;
-  const yPct = 100 - ((smmKg - yMin) / (yMax - yMin)) * 100;
-
-  const zones = [
-    { label: "Elite", x: ((ref.elite - xMin) / (xMax - xMin)) * 100, color: "#D3FF52" },
-    { label: "Good",  x: ((ref.good  - xMin) / (xMax - xMin)) * 100, color: "#5BA8FF" },
-    { label: "Fair",  x: ((ref.fair  - xMin) / (xMax - xMin)) * 100, color: "#ff8c00" },
-  ];
-
-  const body = (
-    <>
-      <div className="flex items-center justify-between text-[10px] font-cond text-ink-3">
-        <span>체형 포지션 맵 (골격근량 × 체지방률)</span>
-        <span className="font-bold" style={{ color: "var(--volt)" }}>● 현재 내 위치</span>
-      </div>
-      <div
-        className="relative rounded-2xl overflow-hidden"
-        style={{ height: 200, background: "var(--pt-1)", border: "1px solid var(--pt-5)" }}
-      >
-        {/* 중심 십자 기준선 (4분면 구분) */}
-        <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: "rgba(255,255,255,0.06)" }} />
-        <div className="absolute inset-x-0 top-1/2 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
-
-        {/* 4분면 워터마크 라벨 — 좌상: 근육형, 우상: 파워형, 좌하: 마른형, 우하: 체지방과다 */}
-        <span className="absolute top-2.5 left-3 text-[9px] font-cond font-black uppercase tracking-wider leading-none" style={{ color: "rgba(211,255,82,0.45)" }}>
-          ATHLETIC · 근육형
-        </span>
-        <span className="absolute top-2.5 right-3 text-[9px] font-cond font-bold uppercase tracking-wider leading-none text-ink-4">
-          POWER · 과체중근육
-        </span>
-        <span className="absolute bottom-2.5 left-3 text-[9px] font-cond font-bold uppercase tracking-wider leading-none text-ink-4">
-          SLIM · 마른형
-        </span>
-        <span className="absolute bottom-2.5 right-3 text-[9px] font-cond font-black uppercase tracking-wider leading-none" style={{ color: "rgba(255,85,119,0.4)" }}>
-          HIGH FAT · 체지방과다
-        </span>
-
-        {/* 구간 세로선 (ACSM Elite/Good/Fair 체지방률 기준) */}
-        {zones.map((z) => (
-          <div
-            key={z.label}
-            className="absolute top-0 bottom-0"
-            style={{ left: `${z.x}%`, width: 1, background: `${z.color}40` }}
-          />
-        ))}
-
-        {/* 목표 가로선 (Good 등급 골격근량 기준) */}
-        <div
-          className="absolute left-0 right-0"
-          style={{
-            top: `${100 - ((tgt.good - yMin) / (yMax - yMin)) * 100}%`,
-            height: 1,
-            background: "rgba(211,255,82,0.3)",
-          }}
-        />
-
-        {/* 현재 위치 핀포인트 + 펄스 링 + 수치 콜아웃 */}
-        <div
-          className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10"
-          style={{ top: `${Math.max(4, Math.min(94, yPct))}%`, left: `${Math.max(2, Math.min(96, xPct))}%` }}
-        >
-          <div className="relative flex items-center justify-center">
-            <span className="w-7 h-7 rounded-full absolute anim-pulse" style={{ background: "rgba(211,255,82,0.25)" }} />
-            <span
-              className="w-3.5 h-3.5 rounded-full"
-              style={{ background: "var(--volt)", border: "2px solid #000", boxShadow: "0 0 12px var(--volt-glow-2)" }}
-            />
-          </div>
-          <span
-            className="mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-cond font-black leading-none whitespace-nowrap shadow-lg"
-            style={{ background: "rgba(0,0,0,0.9)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
-          >
-            {smmKg}kg · {bodyFatPct}%
-          </span>
-        </div>
-      </div>
-    </>
-  );
-
-  if (bare) return <div className="flex flex-col gap-3">{body}</div>;
-
-  return (
-    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-      {body}
     </div>
   );
 }
