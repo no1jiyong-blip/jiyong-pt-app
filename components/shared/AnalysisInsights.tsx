@@ -4,21 +4,11 @@ import { useMemo, useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
-  Flame,
   CalendarDays,
-  UserCheck,
-  Dumbbell,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from "recharts";
 import type { Session, ExerciseRecord, Member, PersonalLog } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
 
@@ -31,6 +21,9 @@ function monthRangeFromNow(now: Date, offset: number) {
   const end = new Date(y, m + 1, 0).toISOString().slice(0, 10);
   return { start, end, label: `${m + 1}월` };
 }
+
+type AttendanceType = "pt" | "personal" | "both";
+type AttendanceRecord = { type: AttendanceType; title: string };
 
 interface Props {
   member: Member;
@@ -80,16 +73,15 @@ const CHARACTERS = {
 
 type CharKey = keyof typeof CHARACTERS;
 
-export function AnalysisInsights({
-  member,
-  sessions,
-  recordsBySession,
-  personalLogs,
-}: Props) {
+export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: Props) {
   const now = new Date();
 
-  const [period, setPeriod] = useState<"week" | "month1" | "month2" | "all">("week");
-  const [trendGranularity, setTrendGranularity] = useState<"weekly" | "monthly">("weekly");
+  const [historyTab, setHistoryTab] = useState<"monthly" | "weekly">("monthly");
+  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(
+    now.toISOString().slice(0, 10)
+  );
 
   /* ─── 날짜 경계 계산 ─── */
   const today = now.toISOString().slice(0, 10);
@@ -115,6 +107,16 @@ export function AnalysisInsights({
     now.getMilliseconds()
   );
   const thisWeekStartStr = thisWeekStart.toISOString().slice(0, 10);
+  const thisWeekEnd = new Date(
+    thisWeekStart.getFullYear(),
+    thisWeekStart.getMonth(),
+    thisWeekStart.getDate() + 6,
+    thisWeekStart.getHours(),
+    thisWeekStart.getMinutes(),
+    thisWeekStart.getSeconds(),
+    thisWeekStart.getMilliseconds()
+  );
+  const thisWeekRangeLabel = `${thisWeekStart.getMonth() + 1}/${thisWeekStart.getDate()} ~ ${thisWeekEnd.getMonth() + 1}/${thisWeekEnd.getDate()}`;
 
   // 저번 주
   const prevWeekStart = new Date(
@@ -146,49 +148,38 @@ export function AnalysisInsights({
 
   /* ─── 출석 계산 ─── */
   const attendance = useMemo(() => {
-    // 이번 달 수업 참여
     const thisMonthPT = completedSessions.filter(
       (s) => s.date >= thisMonthStart && s.date <= today
     ).length;
 
-    // 이번 달 개인 운동
     const thisMonthPersonal = personalLogs.filter(
       (l) => l.log_date >= thisMonthStart && l.log_date <= today
     ).length;
 
-    // 저번 달 수업
     const prevMonthPT = completedSessions.filter(
       (s) => s.date >= prevMonthStart && s.date <= prevMonthEnd
     ).length;
 
-    // 이번 주 수업
     const thisWeekPT = completedSessions.filter(
       (s) => s.date >= thisWeekStartStr && s.date <= today
     ).length;
 
-    // 저번 주 수업
     const prevWeekPT = completedSessions.filter(
       (s) => s.date >= prevWeekStartStr && s.date <= prevWeekEndStr
     ).length;
 
-    // 이번 주 개인
     const thisWeekPersonal = personalLogs.filter(
       (l) => l.log_date >= thisWeekStartStr && l.log_date <= today
     ).length;
 
-    // 월 대비 변화율
+    const prevWeekPersonal = personalLogs.filter(
+      (l) => l.log_date >= prevWeekStartStr && l.log_date <= prevWeekEndStr
+    ).length;
+
     const monthlyChangePct =
       prevMonthPT > 0
         ? Math.round(((thisMonthPT - prevMonthPT) / prevMonthPT) * 100)
         : thisMonthPT > 0
-        ? 100
-        : 0;
-
-    // 주 대비 변화율
-    const weeklyChangePct =
-      prevWeekPT > 0
-        ? Math.round(((thisWeekPT - prevWeekPT) / prevWeekPT) * 100)
-        : thisWeekPT > 0
         ? 100
         : 0;
 
@@ -200,79 +191,98 @@ export function AnalysisInsights({
       thisWeekPT,
       prevWeekPT,
       thisWeekPersonal,
+      prevWeekPersonal,
       monthlyChangePct,
-      weeklyChangePct,
     };
   }, [completedSessions, personalLogs, thisMonthStart, today, prevMonthStart, prevMonthEnd, thisWeekStartStr, prevWeekStartStr, prevWeekEndStr]);
 
-  /* ─── ACTIVITY REPORT: 4개 기간(이번 주 / 이번 달 / 저번 달 / 전체 누적) ─── */
-  const activityPeriods = useMemo(() => {
-    const countRange = (start: string, end: string) => {
-      const pt = completedSessions.filter((s) => s.date >= start && s.date <= end).length;
-      const personal = personalLogs.filter((l) => l.log_date >= start && l.log_date <= end).length;
-      return { pt, personal, total: pt + personal };
-    };
-    const pct = (cur: number, prev: number) =>
-      prev > 0 ? Math.round(((cur - prev) / prev) * 100) : cur > 0 ? 100 : 0;
+  const weekDiff =
+    attendance.thisWeekPT + attendance.thisWeekPersonal - (attendance.prevWeekPT + attendance.prevWeekPersonal);
 
-    const thisMonth = monthRangeFromNow(now, 0);
-    const prevMonth = monthRangeFromNow(now, -1);
-    const prevPrevMonth = monthRangeFromNow(now, -2);
+  /* ─── 날짜별 출석 기록 (캘린더/주간 스트립 공용) ─── */
+  const attendanceRecords = useMemo(() => {
+    const map: Record<string, AttendanceRecord> = {};
 
-    const weekCur = countRange(thisWeekStartStr, today);
-    const weekPrev = countRange(prevWeekStartStr, prevWeekEndStr);
+    completedSessions.forEach((s) => {
+      const names = Array.from(new Set((recordsBySession[s.id] ?? []).map((r) => r.exercise_name)));
+      const title = names.length > 0 ? `PT 수업 · ${names.slice(0, 3).join(" · ")}` : "PT 수업";
+      map[s.date] = { type: "pt", title };
+    });
 
-    const m1Cur = countRange(thisMonth.start, today);
-    const m1Prev = countRange(prevMonth.start, prevMonth.end);
+    personalLogs.forEach((l) => {
+      const personalTitle = `개인 운동 · ${l.workout_memo ?? l.exercise_name}`;
+      const existing = map[l.log_date];
+      if (!existing) {
+        map[l.log_date] = { type: "personal", title: personalTitle };
+      } else if (existing.type === "pt") {
+        map[l.log_date] = { type: "both", title: `${existing.title} + ${personalTitle}` };
+      } else {
+        map[l.log_date] = { ...existing, title: `${existing.title} · ${personalTitle}` };
+      }
+    });
 
-    const m2Cur = countRange(prevMonth.start, prevMonth.end);
-    const m2Prev = countRange(prevPrevMonth.start, prevPrevMonth.end);
+    return map;
+  }, [completedSessions, recordsBySession, personalLogs]);
 
-    const allDates = [
-      ...completedSessions.map((s) => s.date),
-      ...personalLogs.map((l) => l.log_date),
-    ].sort();
-    const allStart = allDates[0] ?? member.start_date ?? today;
-    const allCur = countRange(allStart, today);
+  /* ─── 이번 주 월~일 출석 스트립 ─── */
+  const thisWeekDays = useMemo(() => {
+    const labels = ["월", "화", "수", "목", "금", "토", "일"];
+    return labels.map((label, i) => {
+      const d = new Date(
+        thisWeekStart.getFullYear(),
+        thisWeekStart.getMonth(),
+        thisWeekStart.getDate() + i
+      );
+      const dateStr = d.toISOString().slice(0, 10);
+      return { day: label, status: attendanceRecords[dateStr]?.type ?? null };
+    });
+  }, [thisWeekStart, attendanceRecords]);
 
-    return {
-      week: {
-        label: "이번 주",
-        ...weekCur,
-        changePct: pct(weekCur.total, weekPrev.total),
-        compareLabel: "저번 주 대비",
-        hasPrev: true,
-      },
-      month1: {
-        label: thisMonth.label,
-        ...m1Cur,
-        changePct: pct(m1Cur.total, m1Prev.total),
-        compareLabel: `${prevMonth.label} 대비`,
-        hasPrev: true,
-      },
-      month2: {
-        label: prevMonth.label,
-        ...m2Cur,
-        changePct: pct(m2Cur.total, m2Prev.total),
-        compareLabel: `${prevPrevMonth.label} 대비`,
-        hasPrev: true,
-      },
-      all: {
-        label: "전체 누적",
-        ...allCur,
-        changePct: null as number | null,
-        compareLabel: `${allStart.slice(0, 4)}.${allStart.slice(5, 7)}부터 누적`,
-        hasPrev: false,
-      },
-    };
-  }, [completedSessions, personalLogs, now, today, thisWeekStartStr, prevWeekStartStr, prevWeekEndStr, member.start_date]);
+  /* ─── 캘린더 월 이동 ─── */
+  const handlePrevCalendarMonth = () => {
+    if (calendarMonth === 1) {
+      setCalendarYear(calendarYear - 1);
+      setCalendarMonth(12);
+    } else {
+      setCalendarMonth(calendarMonth - 1);
+    }
+    setCalendarSelectedDate(null);
+  };
 
-  const selectedPeriod = activityPeriods[period];
+  const handleNextCalendarMonth = () => {
+    if (calendarMonth === 12) {
+      setCalendarYear(calendarYear + 1);
+      setCalendarMonth(1);
+    } else {
+      setCalendarMonth(calendarMonth + 1);
+    }
+    setCalendarSelectedDate(null);
+  };
 
-  /* ─── ATTENDANCE TREND: 최근 8주 / 최근 6개월 추이 ─── */
+  const calendarMonthTotal = useMemo(() => {
+    const prefix = `${calendarYear}-${String(calendarMonth).padStart(2, "0")}`;
+    return Object.entries(attendanceRecords).reduce((acc, [date, record]) => {
+      if (!date.startsWith(prefix)) return acc;
+      return acc + (record.type === "both" ? 2 : 1);
+    }, 0);
+  }, [attendanceRecords, calendarYear, calendarMonth]);
+
+  /* ─── ATTENDANCE LOG: 최근 6개월 / 최근 6주 ─── */
+  const monthlyTrend = useMemo(() => {
+    const months: { label: string; pt: number; personal: number; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const { start, end, label } = monthRangeFromNow(now, -i);
+      const rangeEnd = i === 0 ? today : end;
+      const pt = completedSessions.filter((s) => s.date >= start && s.date <= rangeEnd).length;
+      const personal = personalLogs.filter((l) => l.log_date >= start && l.log_date <= rangeEnd).length;
+      months.push({ label, pt, personal, total: pt + personal });
+    }
+    return months;
+  }, [completedSessions, personalLogs, now, today]);
+
   const weeklyTrend = useMemo(() => {
-    const weeks: { label: string; total: number }[] = [];
-    for (let i = 7; i >= 0; i--) {
+    const weeks: { label: string; pt: number; personal: number; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
       const ws = new Date(
         thisWeekStart.getFullYear(),
         thisWeekStart.getMonth(),
@@ -283,36 +293,14 @@ export function AnalysisInsights({
       const weStr = we.toISOString().slice(0, 10);
       const pt = completedSessions.filter((s) => s.date >= wsStr && s.date <= weStr).length;
       const personal = personalLogs.filter((l) => l.log_date >= wsStr && l.log_date <= weStr).length;
-      weeks.push({ label: `${ws.getMonth() + 1}/${ws.getDate()}`, total: pt + personal });
+      const label = i === 0 ? "이번 주" : `${ws.getMonth() + 1}/${ws.getDate()}주`;
+      weeks.push({ label, pt, personal, total: pt + personal });
     }
     return weeks;
   }, [completedSessions, personalLogs, thisWeekStart]);
 
-  const monthlyTrend = useMemo(() => {
-    const months: { label: string; total: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const { start, end, label } = monthRangeFromNow(now, -i);
-      const rangeEnd = i === 0 ? today : end;
-      const pt = completedSessions.filter((s) => s.date >= start && s.date <= rangeEnd).length;
-      const personal = personalLogs.filter((l) => l.log_date >= start && l.log_date <= rangeEnd).length;
-      months.push({ label, total: pt + personal });
-    }
-    return months;
-  }, [completedSessions, personalLogs, now, today]);
-
-  const trendStats = useMemo(() => {
-    const avg = (arr: { total: number }[]) =>
-      arr.length > 0 ? Math.round((arr.reduce((s, x) => s + x.total, 0) / arr.length) * 10) / 10 : 0;
-    const activeSeries = trendGranularity === "weekly" ? weeklyTrend : monthlyTrend;
-    const first = activeSeries[0]?.total ?? 0;
-    const last = activeSeries[activeSeries.length - 1]?.total ?? 0;
-    const changePct = first > 0 ? Math.round(((last - first) / first) * 100) : last > 0 ? 100 : 0;
-    return {
-      weeklyAvg: avg(weeklyTrend),
-      monthlyAvg: avg(monthlyTrend),
-      changePct,
-    };
-  }, [weeklyTrend, monthlyTrend, trendGranularity]);
+  const activeHistory = historyTab === "monthly" ? monthlyTrend : weeklyTrend;
+  const historyMax = Math.max(...activeHistory.map((d) => d.total), 1);
 
   /* ─── 4주 근력 성장률 ─── */
   const strengthGrowth = useMemo(() => {
@@ -421,7 +409,7 @@ export function AnalysisInsights({
 
   return (
     <div className="flex flex-col gap-7">
-      {/* ─── 1. 이번 달 출석 지표 ─── */}
+      {/* ─── 1. 이번 주 활동 리포트 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-end justify-between gap-2">
           <div className="flex flex-col gap-1.5">
@@ -432,207 +420,227 @@ export function AnalysisInsights({
               ACTIVITY REPORT
             </h3>
             <p className="text-[11px] font-cond text-ink-3 leading-none">
-              기간을 선택해 활동량을 확인하세요
+              이번 주 운동 횟수와 월별 출석 기록을 확인하세요
             </p>
           </div>
           <CalendarDays size={16} className="text-volt mb-1" />
         </div>
 
-        {/* 기간 스위처 */}
-        <div
-          className="flex gap-1 p-1 rounded-xl"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-        >
-          {(["week", "month1", "month2", "all"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setPeriod(p)}
-              className="tap-haptic flex-1 px-2 py-1.5 rounded-lg text-[11px] font-cond font-bold transition-all"
-              style={
-                period === p
-                  ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
-                  : { color: "var(--ink-3)" }
-              }
+        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="text-[10px] font-cond font-bold px-2.5 py-1 rounded-full"
+              style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}
             >
-              {activityPeriods[p].label}
-            </button>
-          ))}
+              이번 주 ({thisWeekRangeLabel})
+            </span>
+            <span className="text-[11px] font-cond text-ink-3">
+              수업 <strong style={{ color: "var(--volt)" }}>{attendance.thisWeekPT}회</strong> · 개인{" "}
+              <strong style={{ color: "#5BA8FF" }}>{attendance.thisWeekPersonal}회</strong>
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-cond text-ink-3 mb-1">이번 주 총 운동 참여</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display leading-none" style={{ fontSize: 40, color: "var(--ink-0)" }}>
+                {attendance.thisWeekPT + attendance.thisWeekPersonal}
+              </span>
+              <span className="text-base font-cond font-bold text-ink-3">회</span>
+            </div>
+          </div>
+
+          {/* 월~일 요일별 참여 인디케이터 */}
+          <div className="grid grid-cols-7 gap-1.5">
+            {thisWeekDays.map((item) => {
+              const isPt = item.status === "pt" || item.status === "both";
+              const isPersonal = item.status === "personal" || item.status === "both";
+              return (
+                <div
+                  key={item.day}
+                  className="flex flex-col items-center justify-center py-2 rounded-xl"
+                  style={
+                    isPt
+                      ? { background: "rgba(211,255,82,0.10)", border: "1px solid rgba(211,255,82,0.4)", color: "var(--volt)" }
+                      : isPersonal
+                      ? { background: "rgba(91,168,255,0.10)", border: "1px solid rgba(91,168,255,0.4)", color: "#5BA8FF" }
+                      : { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--ink-4)" }
+                  }
+                >
+                  <span className="text-xs font-cond font-bold leading-none">{item.day}</span>
+                  <div className="flex items-center justify-center gap-1 mt-1.5" style={{ height: 6 }}>
+                    {isPt && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+                    )}
+                    {isPersonal && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+                    )}
+                    {!isPt && !isPersonal && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 3단 출석 카드 */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <AttendanceMini
-            icon={UserCheck}
-            label="수업 참여"
-            value={selectedPeriod.pt}
-            unit="회"
-            color="#D3FF52"
-          />
-          <AttendanceMini
-            icon={Dumbbell}
-            label="개인 운동"
-            value={selectedPeriod.personal}
-            unit="회"
-            color="#5BA8FF"
-          />
-          <AttendanceMini
-            icon={Flame}
-            label="총합"
-            value={selectedPeriod.total}
-            unit="회"
-            color="#ff8c00"
-            highlight
-          />
-        </div>
-
-        {/* 직전 기간 대비 */}
-        <div className="pt-card flex items-center justify-between gap-3" style={{ padding: 18 }}>
-          <div className="flex flex-col gap-1 min-w-0">
-            <p className="text-[10px] font-cond font-bold text-ink-2 tracking-wide-2 uppercase leading-none">
-              {selectedPeriod.compareLabel}
-            </p>
-            {!selectedPeriod.hasPrev && (
-              <p className="text-[10px] font-cond text-ink-4 leading-none">
-                첫 기록부터 지금까지의 누적 활동량입니다
-              </p>
+        {/* 저번 주 비교 */}
+        <div className="pt-card flex items-center justify-between gap-3" style={{ padding: 16 }}>
+          <span className="text-[11px] font-cond text-ink-3">저번 주 운동 참여</span>
+          <div className="flex items-center gap-2">
+            <span className="font-cond font-bold leading-none text-ink-0" style={{ fontSize: 13 }}>
+              총 {attendance.prevWeekPT + attendance.prevWeekPersonal}회
+            </span>
+            <span className="text-[11px] font-cond text-ink-4">
+              (수업 {attendance.prevWeekPT} · 개인 {attendance.prevWeekPersonal})
+            </span>
+            {weekDiff !== 0 && (
+              <span
+                className="flex items-center gap-0.5 text-[11px] font-cond font-bold"
+                style={{ color: weekDiff > 0 ? "var(--volt)" : "var(--danger)" }}
+              >
+                {weekDiff > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {weekDiff > 0 ? "+" : ""}
+                {weekDiff}
+              </span>
             )}
           </div>
-          {selectedPeriod.changePct !== null && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {selectedPeriod.changePct >= 0 ? (
-                <TrendingUp size={14} className="text-volt" />
-              ) : (
-                <TrendingDown size={14} className="text-danger" />
-              )}
-              <span
-                className="font-display tabular-nums leading-none"
-                style={{
-                  fontSize: 20,
-                  color: selectedPeriod.changePct >= 0 ? "var(--volt)" : "var(--danger)",
-                }}
-              >
-                {selectedPeriod.changePct >= 0 ? "+" : ""}
-                {selectedPeriod.changePct}%
-              </span>
-            </div>
-          )}
         </div>
       </section>
 
-      {/* ─── 1-2. 출석 추이 (주간/월간) ─── */}
+      {/* ─── 2. 출석 캘린더 ─── */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3
+            className="font-display text-ink-0 leading-none tracking-wide uppercase"
+            style={{ fontSize: 20 }}
+          >
+            ATTENDANCE
+          </h3>
+          <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+              수업
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+              개인
+            </span>
+          </div>
+        </div>
+
+        <AttendanceCalendar
+          year={calendarYear}
+          month={calendarMonth}
+          selectedDate={calendarSelectedDate}
+          onSelectDate={setCalendarSelectedDate}
+          onPrevMonth={handlePrevCalendarMonth}
+          onNextMonth={handleNextCalendarMonth}
+          records={attendanceRecords}
+          monthTotal={calendarMonthTotal}
+        />
+      </section>
+
+      {/* ─── 3. 월별/주별 출석 기록 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <h3
             className="font-display text-ink-0 leading-none tracking-wide uppercase"
             style={{ fontSize: 20 }}
           >
-            ATTENDANCE TREND
+            ATTENDANCE LOG
           </h3>
           <div
             className="flex gap-1 p-1 rounded-xl shrink-0"
             style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
           >
-            {(["weekly", "monthly"] as const).map((g) => (
+            {(["monthly", "weekly"] as const).map((g) => (
               <button
                 key={g}
                 type="button"
-                onClick={() => setTrendGranularity(g)}
+                onClick={() => setHistoryTab(g)}
                 className="tap-haptic px-2.5 py-1 rounded-lg text-[10px] font-cond font-bold transition-all"
                 style={
-                  trendGranularity === g
+                  historyTab === g
                     ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
                     : { color: "var(--ink-3)" }
                 }
               >
-                {g === "weekly" ? "WEEKLY" : "MONTHLY"}
+                {g === "monthly" ? "월별" : "주별"}
               </button>
             ))}
           </div>
         </div>
 
         <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          <ResponsiveContainer width="100%" height={160}>
-            <AreaChart
-              data={trendGranularity === "weekly" ? weeklyTrend : monthlyTrend}
-              margin={{ top: 10, right: 8, left: -18, bottom: 0 }}
-            >
-              <defs>
-                <linearGradient id="attendanceTrendGlow" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#D3FF52" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#D3FF52" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis
-                dataKey="label"
-                tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                allowDecimals={false}
-                tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
-                axisLine={false}
-                tickLine={false}
-                width={24}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "rgba(8,8,8,0.95)",
-                  border: "1px solid #333",
-                  borderRadius: 10,
-                  fontFamily: "Barlow Condensed",
-                  fontSize: 12,
-                }}
-              />
-              <ReferenceLine
-                y={trendGranularity === "weekly" ? 2 : 8}
-                stroke="#5BA8FF"
-                strokeDasharray="4 4"
-                label={{
-                  value: "ACSM 권장",
-                  position: "insideTopRight",
-                  fill: "#5BA8FF",
-                  fontSize: 10,
-                  fontFamily: "Barlow Condensed",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="total"
-                stroke="#D3FF52"
-                strokeWidth={2.5}
-                fillOpacity={1}
-                fill="url(#attendanceTrendGlow)"
-                dot={{ r: 3.5, fill: "#D3FF52", stroke: "#080808", strokeWidth: 2 }}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {/* 막대 그래프 */}
+          <div
+            className="grid grid-cols-6 gap-2 items-end"
+            style={{ height: 150, borderBottom: "1px solid rgba(255,255,255,0.07)", paddingTop: 20, paddingBottom: 12 }}
+          >
+            {activeHistory.map((item, idx) => {
+              const heightPct = Math.round((item.total / historyMax) * 100);
+              const isLast = idx === activeHistory.length - 1;
+              return (
+                <div key={item.label} className="flex flex-col items-center h-full justify-end">
+                  <span
+                    className="text-[11px] font-cond font-bold mb-1.5 leading-none"
+                    style={{ color: isLast ? "var(--volt)" : "var(--ink-2)" }}
+                  >
+                    {item.total}회
+                  </span>
+                  <div
+                    className="w-full flex items-end overflow-hidden"
+                    style={{ maxWidth: 26, height: 96, background: "rgba(255,255,255,0.05)", borderRadius: "8px 8px 0 0" }}
+                  >
+                    <div
+                      style={{
+                        height: `${heightPct}%`,
+                        width: "100%",
+                        background: isLast ? "var(--volt)" : "rgba(255,255,255,0.18)",
+                        borderRadius: "8px 8px 0 0",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-[10px] font-cond mt-2 leading-none"
+                    style={{ color: isLast ? "var(--ink-0)" : "var(--ink-4)", fontWeight: isLast ? 700 : 500 }}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <MiniMetric
-              label="주 평균 출석"
-              value={`${trendStats.weeklyAvg}회`}
-              sub="최근 8주"
-              positive
-            />
-            <MiniMetric
-              label="월 평균 출석"
-              value={`${trendStats.monthlyAvg}회`}
-              sub="최근 6개월"
-              positive
-            />
-            <MiniMetric
-              label="초기 대비 변화"
-              value={`${trendStats.changePct >= 0 ? "+" : ""}${trendStats.changePct}%`}
-              sub={trendGranularity === "weekly" ? "8주 전 대비" : "6개월 전 대비"}
-              positive={trendStats.changePct >= 0}
-            />
+          {/* 상세 데이터 리스트 */}
+          <div className="flex flex-col gap-2.5">
+            {[...activeHistory].reverse().map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between rounded-2xl px-4 py-3"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <div>
+                  <p className="text-sm font-cond font-bold text-ink-0 leading-none">
+                    {historyTab === "monthly" ? `${item.label} 누적 출석` : `${item.label} 출석`}
+                  </p>
+                  <p className="text-[11px] font-cond text-ink-3 mt-1 leading-none">
+                    수업 참여 <span style={{ color: "var(--volt)", fontWeight: 700 }}>{item.pt}회</span> · 개인 운동{" "}
+                    <span style={{ color: "#5BA8FF", fontWeight: 700 }}>{item.personal}회</span>
+                  </p>
+                </div>
+                <span className="font-display tabular-nums leading-none" style={{ fontSize: 18, color: "var(--ink-0)" }}>
+                  {item.total}회
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ─── 2. 4주 성장 캐릭터 진단 ─── */}
+      {/* ─── 4. 4주 성장 캐릭터 진단 ─── */}
       <section className="flex flex-col gap-4">
         <h3
           className="font-display text-ink-0 leading-none tracking-wide uppercase"
@@ -728,43 +736,161 @@ export function AnalysisInsights({
 
 /* ─── 서브 컴포넌트들 ──────────────────────────────── */
 
-function AttendanceMini({
-  icon: Icon,
-  label,
-  value,
-  unit,
-  color,
-  highlight = false,
+function AttendanceCalendar({
+  year,
+  month,
+  selectedDate,
+  onSelectDate,
+  onPrevMonth,
+  onNextMonth,
+  records,
+  monthTotal,
 }: {
-  icon: typeof UserCheck;
-  label: string;
-  value: number;
-  unit: string;
-  color: string;
-  highlight?: boolean;
+  year: number;
+  month: number;
+  selectedDate: string | null;
+  onSelectDate: (date: string) => void;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  records: Record<string, AttendanceRecord>;
+  monthTotal: number;
 }) {
+  const calendarCells = useMemo(() => {
+    const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
+    const daysInMonth = new Date(year, month, 0).getDate();
+
+    const cells: ({ day: number; dateStr: string; record: AttendanceRecord | null } | null)[] = [];
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      cells.push(null);
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      cells.push({ day, dateStr, record: records[dateStr] ?? null });
+    }
+    return cells;
+  }, [year, month, records]);
+
+  const selectedRecord = selectedDate ? records[selectedDate] ?? null : null;
+
   return (
-    <div
-      className="pt-card flex flex-col gap-2.5 items-center text-center"
-      style={{
-        padding: 16,
-        borderColor: highlight ? `${color}40` : undefined,
-        background: highlight
-          ? `linear-gradient(160deg, ${color}12 0%, rgba(20,20,20,0.85) 100%)`
-          : undefined,
-      }}
-    >
-      <Icon size={14} style={{ color }} />
-      <p className="text-[9px] font-cond text-ink-3 tracking-wider leading-none uppercase">
-        {label}
-      </p>
-      <p
-        className="font-display tabular-nums leading-none"
-        style={{ fontSize: 28, color, letterSpacing: "-0.02em" }}
+    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+      {/* 상단 연월 & 누적 뱃지 & 월 이동 버튼 */}
+      <div
+        className="flex items-center justify-between pb-4"
+        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
       >
-        {value}
-        <span className="text-ink-3 text-xs ml-0.5">{unit}</span>
-      </p>
+        <div className="flex items-center gap-2.5">
+          <span className="font-display tabular-nums leading-none" style={{ fontSize: 20, color: "var(--ink-0)" }}>
+            {year}.{String(month).padStart(2, "0")}
+          </span>
+          <span
+            className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full"
+            style={{ background: "rgba(211,255,82,0.10)", color: "var(--volt)", border: "1px solid rgba(211,255,82,0.25)" }}
+          >
+            총 {monthTotal}회 출석
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onPrevMonth}
+            aria-label="이전 달"
+            className="tap-haptic w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "var(--ink-3)" }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={onNextMonth}
+            aria-label="다음 달"
+            className="tap-haptic w-8 h-8 rounded-full flex items-center justify-center"
+            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "var(--ink-3)" }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* 요일 헤더 */}
+      <div className="grid grid-cols-7 text-center">
+        {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+          <span key={d} className="text-[11px] font-cond text-ink-3">
+            {d}
+          </span>
+        ))}
+      </div>
+
+      {/* 날짜 그리드 */}
+      <div className="grid grid-cols-7 gap-y-2 text-center">
+        {calendarCells.map((cell, idx) => {
+          if (!cell) {
+            return <div key={`empty-${idx}`} className="h-11" />;
+          }
+
+          const { day, dateStr, record } = cell;
+          const isSelected = selectedDate === dateStr;
+
+          return (
+            <div key={dateStr} className="flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => onSelectDate(dateStr)}
+                className="tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all"
+                style={
+                  isSelected
+                    ? { background: "rgba(211,255,82,0.10)", border: "1px solid var(--volt)", color: "var(--volt)" }
+                    : { border: "1px solid transparent", color: "var(--ink-1)" }
+                }
+              >
+                <span className="text-sm font-cond font-bold leading-none">{day}</span>
+                <div className="flex items-center justify-center gap-1 mt-1" style={{ height: 6 }}>
+                  {record?.type === "pt" && (
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+                  )}
+                  {record?.type === "personal" && (
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+                  )}
+                  {record?.type === "both" && (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+                    </>
+                  )}
+                </div>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 선택 날짜 상세 기록 바 */}
+      <div className="pt-3.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+        {selectedDate ? (
+          selectedRecord ? (
+            <div className="flex items-center gap-2">
+              <span
+                className="text-[10px] font-cond font-bold px-2 py-0.5 rounded shrink-0"
+                style={
+                  selectedRecord.type === "personal"
+                    ? { background: "rgba(91,168,255,0.15)", color: "#5BA8FF" }
+                    : { background: "rgba(211,255,82,0.15)", color: "var(--volt)" }
+                }
+              >
+                {selectedDate.slice(5).replace("-", "/")}
+              </span>
+              <span className="text-xs font-cond text-ink-1 truncate">{selectedRecord.title}</span>
+            </div>
+          ) : (
+            <p className="text-xs font-cond text-ink-4">
+              {selectedDate.slice(5).replace("-", "/")} · 등록된 운동 기록이 없습니다
+            </p>
+          )
+        ) : (
+          <p className="text-xs font-cond text-ink-4">날짜를 선택하면 상세 운동 내역을 확인할 수 있습니다</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -806,4 +932,3 @@ function MiniMetric({
     </div>
   );
 }
-
