@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from "react";
 import {
-  Award,
   TrendingUp,
   TrendingDown,
-  AlertCircle,
   Flame,
   CalendarDays,
   UserCheck,
@@ -22,7 +20,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import type { Session, ExerciseRecord, Member, PersonalLog } from "@/lib/types";
-import { calcOneRM, getAge } from "@/lib/types";
+import { calcOneRM } from "@/lib/types";
 
 /* ─── N개월 전 월의 [시작일, 종료일, 라벨] ──────────── */
 function monthRangeFromNow(now: Date, offset: number) {
@@ -88,7 +86,6 @@ export function AnalysisInsights({
   recordsBySession,
   personalLogs,
 }: Props) {
-  const age = getAge(member.birth_date);
   const now = new Date();
 
   const [period, setPeriod] = useState<"week" | "month1" | "month2" | "all">("week");
@@ -422,72 +419,6 @@ export function AnalysisInsights({
 
   const char = CHARACTERS[charKey];
 
-  /* ─── ACSM 기반 인사이트 카드 ─── */
-  const insights = useMemo(() => {
-    const cards: {
-      type: "pro" | "warn" | "tip";
-      title: string;
-      text: string;
-    }[] = [];
-
-    // 1. 출석 기반
-    if (attendance.weeklyChangePct >= 20) {
-      cards.push({
-        type: "pro",
-        title: "이번 주 출석 우수",
-        text: `저번 주 대비 ${attendance.weeklyChangePct}% 더 운동했습니다. ACSM 권장 주 150분 활동량을 충족하고 있어요. 이 페이스가 지속되면 심폐 기능과 근력이 동시에 향상됩니다.`,
-      });
-    } else if (attendance.weeklyChangePct < -20) {
-      cards.push({
-        type: "warn",
-        title: "이번 주 활동량 감소",
-        text: `저번 주보다 ${Math.abs(attendance.weeklyChangePct)}% 줄었습니다. ACSM 가이드라인은 최소 주 2회 근력 운동을 권장해요. 10분이라도 짧게 가시는 게 쉬는 것보다 훨씬 낫습니다.`,
-      });
-    }
-
-    // 2. 근력 성장 기반
-    if (strengthGrowth.avgPct >= 10) {
-      cards.push({
-        type: "pro",
-        title: "근신경계 적응 활성화",
-        text: `4주간 평균 ${strengthGrowth.avgPct}% 성장은 탁월한 수치입니다. 초기 근력 향상의 80%는 실제 근육 증가가 아닌 신경 적응에서 옵니다. 지금 단계가 가장 빠르게 강해지는 골든타임이에요.`,
-      });
-    } else if (strengthGrowth.avgPct < 0 && strengthGrowth.hasData) {
-      cards.push({
-        type: "warn",
-        title: "근력 수치 감소 감지",
-        text: `4주간 근력이 소폭 감소했습니다. 원인은 수면 부족, 영양 불균형, 또는 과훈련일 수 있어요. 이번 주는 볼륨을 20% 줄이고 회복에 집중하는 'Deload Week'를 권장합니다.`,
-      });
-    }
-
-    // 3. 연령별 조언
-    if (age !== null) {
-      if (age >= 35) {
-        cards.push({
-          type: "tip",
-          title: `${age}세 맞춤 — 회복 프로토콜`,
-          text: `35세 이상은 코르티솔 반감기가 길어져 회복 시간이 20대보다 48시간 더 필요할 수 있어요. 워밍업 10분 + 쿨다운 10분을 반드시 지키고, 주 1회는 가벼운 유산소(심박수 65%, 노래 부르기 힘든 강도)로 능동적 회복일을 가지세요.`,
-        });
-      } else {
-        cards.push({
-          type: "tip",
-          title: "골든 에이지 — 지금이 최적기",
-          text: `20~30대는 근단백질 합성 속도가 가장 빠른 시기예요. 운동 후 30분 내 단백질 섭취(체중 × 0.4g)를 꼭 챙기세요. 유청 단백질 1스쿱 + 바나나 조합이 가장 실용적입니다.`,
-        });
-      }
-    }
-
-    // 4. 식단 가이드
-    const proteinTarget = member.gender === "female" ? 1.6 : 1.8;
-    cards.push({
-      type: "tip",
-      title: "단백질 섭취 가이드",
-      text: `신지용 트레이너 권장: 체중 × ${proteinTarget}g의 단백질이 근성장에 최적입니다. 닭가슴살 외에 계란(개당 6g), 연어(100g당 20g), 두부(100g당 8g)를 다양하게 드세요. 한 끼에 몰아 먹기보다 3~4끼에 분산 섭취가 핵심입니다.`,
-    });
-
-    return cards;
-  }, [attendance, strengthGrowth, age, member.gender]);
-
   return (
     <div className="flex flex-col gap-7">
       {/* ─── 1. 이번 달 출석 지표 ─── */}
@@ -791,30 +722,6 @@ export function AnalysisInsights({
           </div>
         </div>
       </section>
-
-      {/* ─── 3. ACSM 기반 인사이트 카드들 ─── */}
-      <section className="flex flex-col gap-4">
-        <h3
-          className="font-display text-ink-0 leading-none tracking-wide uppercase"
-          style={{ fontSize: 20 }}
-        >
-          JIYONG PT INSIGHTS
-        </h3>
-        <p className="text-[11px] font-cond text-ink-3 leading-none -mt-2">
-          ACSM 가이드라인 기반 · 신지용 트레이너 6년 경력 분석
-        </p>
-
-        <div className="flex flex-col gap-3">
-          {insights.map((ins, i) => (
-            <InsightCard key={i} type={ins.type} title={ins.title} text={ins.text} />
-          ))}
-        </div>
-
-        <p className="text-[10px] font-cond text-ink-4 text-center leading-relaxed italic">
-          * ACSM(미국스포츠의학회) 가이드라인 + 트레이너 임상 경험 기반 자동 분석입니다.
-          정확한 처방은 직접 상담을 통해 받으세요.
-        </p>
-      </section>
     </div>
   );
 }
@@ -900,49 +807,3 @@ function MiniMetric({
   );
 }
 
-function InsightCard({
-  type,
-  title,
-  text,
-}: {
-  type: "pro" | "warn" | "tip";
-  title: string;
-  text: string;
-}) {
-  const cfg = {
-    pro: { Icon: Award, color: "#D3FF52", label: "STRENGTH" },
-    warn: { Icon: AlertCircle, color: "#ff8080", label: "ATTENTION" },
-    tip: { Icon: TrendingUp, color: "#5BA8FF", label: "ADVICE" },
-  }[type];
-
-  return (
-    <div
-      className="pt-card flex items-start gap-4"
-      style={{ padding: 20 }}
-    >
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{
-          background: `${cfg.color}1A`,
-          border: `1px solid ${cfg.color}40`,
-        }}
-      >
-        <cfg.Icon size={16} style={{ color: cfg.color }} />
-      </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <span
-            className="text-[9px] font-cond font-bold tracking-wider leading-none uppercase"
-            style={{ color: cfg.color }}
-          >
-            {cfg.label}
-          </span>
-          <span className="text-ink-0 text-xs font-cond font-bold leading-none">
-            {title}
-          </span>
-        </div>
-        <p className="text-xs text-ink-1 leading-relaxed">{text}</p>
-      </div>
-    </div>
-  );
-}
