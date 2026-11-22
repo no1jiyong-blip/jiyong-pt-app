@@ -735,6 +735,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
               value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
               sub={strengthGrowth.bestEx || "—"}
               positive={strengthGrowth.avgPct >= 0}
+              accent
             />
           </div>
 
@@ -779,14 +780,13 @@ function AttendanceCalendar({
     const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    const cells: ({ day: number; dateStr: string; dow: number; record: AttendanceRecord | null } | null)[] = [];
+    const cells: ({ day: number; dateStr: string; record: AttendanceRecord | null } | null)[] = [];
     for (let i = 0; i < firstDayOfWeek; i++) {
       cells.push(null);
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const dow = new Date(year, month - 1, day).getDay();
-      cells.push({ day, dateStr, dow, record: records[dateStr] ?? null });
+      cells.push({ day, dateStr, record: records[dateStr] ?? null });
     }
     return cells;
   }, [year, month, records]);
@@ -804,10 +804,7 @@ function AttendanceCalendar({
           <span className="font-display tabular-nums leading-none" style={{ fontSize: 20, color: "var(--ink-0)" }}>
             {year}.{String(month).padStart(2, "0")}
           </span>
-          <span
-            className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full"
-            style={{ background: "rgba(211,255,82,0.10)", color: "var(--volt)", border: "1px solid rgba(211,255,82,0.25)" }}
-          >
+          <span className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700">
             총 {monthTotal}회 출석
           </span>
         </div>
@@ -855,19 +852,15 @@ function AttendanceCalendar({
             return <div key={`empty-${idx}`} className="h-11" />;
           }
 
-          const { day, dateStr, dow, record } = cell;
+          const { day, dateStr, record } = cell;
           const isSelected = selectedDate === dateStr;
-          const isSunday = dow === 0;
-          const isSaturday = dow === 6;
 
           return (
             <div key={dateStr} className="flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => onSelectDate(dateStr)}
-                className={`tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all ${
-                  isSunday ? "text-rose-400" : isSaturday ? "text-sky-400" : "text-ink-1"
-                }`}
+                className="tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all text-zinc-200"
                 style={
                   isSelected
                     ? { background: "rgba(211,255,82,0.10)", border: "1px solid var(--volt)", color: "var(--volt)" }
@@ -930,11 +923,13 @@ function MiniMetric({
   value,
   sub,
   positive,
+  accent = false,
 }: {
   label: string;
   value: string;
   sub: string;
   positive: boolean;
+  accent?: boolean;
 }) {
   return (
     <div
@@ -944,14 +939,14 @@ function MiniMetric({
         border: "1px solid var(--pt-5)",
       }}
     >
-      <p className="text-[9px] font-cond text-ink-3 tracking-wider leading-none uppercase">
+      <p className="text-[9px] font-cond font-semibold text-zinc-100 tracking-wider leading-none uppercase">
         {label}
       </p>
       <p
-        className="font-display tabular-nums leading-none"
+        className={`font-display tabular-nums leading-none ${accent ? "" : "text-white"}`}
         style={{
           fontSize: 17,
-          color: positive ? "var(--volt)" : "var(--danger)",
+          color: accent ? (positive ? "var(--volt)" : "var(--danger)") : undefined,
         }}
       >
         {value}
