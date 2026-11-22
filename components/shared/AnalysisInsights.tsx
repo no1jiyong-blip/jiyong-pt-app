@@ -407,6 +407,30 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
 
   const char = CHARACTERS[charKey];
 
+  /* ─── 전체 기간 기준 주/월 평균 출석 ─── */
+  const allTimeAvg = useMemo(() => {
+    const totalActivities = completedSessions.length + personalLogs.length;
+    if (totalActivities === 0) return { weeklyAvg: 0, monthlyAvg: 0 };
+
+    const allDates = [
+      ...completedSessions.map((s) => s.date),
+      ...personalLogs.map((l) => l.log_date),
+    ].sort();
+    const earliestDate = allDates[0];
+
+    const daysElapsed =
+      Math.round(
+        (new Date(`${today}T00:00:00Z`).getTime() - new Date(`${earliestDate}T00:00:00Z`).getTime()) / 86400000
+      ) + 1;
+    const weeksElapsed = Math.max(1, daysElapsed / 7);
+    const weeklyAvg = Math.round((totalActivities / weeksElapsed) * 10) / 10;
+
+    const activeMonths = new Set(allDates.map((d) => d.slice(0, 7))).size;
+    const monthlyAvg = Math.round((totalActivities / Math.max(1, activeMonths)) * 10) / 10;
+
+    return { weeklyAvg, monthlyAvg };
+  }, [completedSessions, personalLogs, today]);
+
   return (
     <div className="flex flex-col gap-7">
       {/* ─── 1. 이번 주 활동 리포트 ─── */}
@@ -695,26 +719,22 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
           {/* 수치 요약 */}
           <div className="grid grid-cols-3 gap-2">
             <MiniMetric
-              label="이번 달 출석"
-              value={`${attendance.thisMonthTotal}회`}
-              sub={
-                attendance.monthlyChangePct !== 0
-                  ? `${attendance.monthlyChangePct > 0 ? "+" : ""}${attendance.monthlyChangePct}%`
-                  : "—"
-              }
-              positive={attendance.monthlyChangePct >= 0}
+              label="주 평균 출석"
+              value={`${allTimeAvg.weeklyAvg}회`}
+              sub="전체 운동 기준"
+              positive
+            />
+            <MiniMetric
+              label="월 평균 출석"
+              value={`${allTimeAvg.monthlyAvg}회`}
+              sub="누적 월 평균"
+              positive
             />
             <MiniMetric
               label="4주 근력 성장"
               value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
               sub={strengthGrowth.bestEx || "—"}
               positive={strengthGrowth.avgPct >= 0}
-            />
-            <MiniMetric
-              label="주 평균"
-              value={`${Math.round((attendance.thisMonthPT / 4) * 10) / 10}회`}
-              sub="PT 기준"
-              positive
             />
           </div>
 
@@ -759,13 +779,14 @@ function AttendanceCalendar({
     const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
     const daysInMonth = new Date(year, month, 0).getDate();
 
-    const cells: ({ day: number; dateStr: string; record: AttendanceRecord | null } | null)[] = [];
+    const cells: ({ day: number; dateStr: string; dow: number; record: AttendanceRecord | null } | null)[] = [];
     for (let i = 0; i < firstDayOfWeek; i++) {
       cells.push(null);
     }
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      cells.push({ day, dateStr, record: records[dateStr] ?? null });
+      const dow = new Date(year, month - 1, day).getDay();
+      cells.push({ day, dateStr, dow, record: records[dateStr] ?? null });
     }
     return cells;
   }, [year, month, records]);
@@ -815,8 +836,13 @@ function AttendanceCalendar({
 
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 text-center">
-        {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-          <span key={d} className="text-[11px] font-cond text-ink-3">
+        {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
+          <span
+            key={d}
+            className={`text-[11px] font-cond ${
+              i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : "text-ink-3"
+            }`}
+          >
             {d}
           </span>
         ))}
@@ -829,19 +855,23 @@ function AttendanceCalendar({
             return <div key={`empty-${idx}`} className="h-11" />;
           }
 
-          const { day, dateStr, record } = cell;
+          const { day, dateStr, dow, record } = cell;
           const isSelected = selectedDate === dateStr;
+          const isSunday = dow === 0;
+          const isSaturday = dow === 6;
 
           return (
             <div key={dateStr} className="flex items-center justify-center">
               <button
                 type="button"
                 onClick={() => onSelectDate(dateStr)}
-                className="tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all"
+                className={`tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all ${
+                  isSunday ? "text-rose-400" : isSaturday ? "text-sky-400" : "text-ink-1"
+                }`}
                 style={
                   isSelected
                     ? { background: "rgba(211,255,82,0.10)", border: "1px solid var(--volt)", color: "var(--volt)" }
-                    : { border: "1px solid transparent", color: "var(--ink-1)" }
+                    : { border: "1px solid transparent" }
                 }
               >
                 <span className="text-sm font-cond font-bold leading-none">{day}</span>
