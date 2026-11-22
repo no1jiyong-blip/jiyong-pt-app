@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Award,
   TrendingUp,
@@ -12,8 +12,27 @@ import {
   Dumbbell,
   Sparkles,
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 import type { Session, ExerciseRecord, Member, PersonalLog } from "@/lib/types";
 import { calcOneRM, getAge } from "@/lib/types";
+
+/* ─── N개월 전 월의 [시작일, 종료일, 라벨] ──────────── */
+function monthRangeFromNow(now: Date, offset: number) {
+  const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const start = `${y}-${String(m + 1).padStart(2, "0")}-01`;
+  const end = new Date(y, m + 1, 0).toISOString().slice(0, 10);
+  return { start, end, label: `${m + 1}월` };
+}
 
 interface Props {
   member: Member;
@@ -72,6 +91,9 @@ export function AnalysisInsights({
   const age = getAge(member.birth_date);
   const now = new Date();
 
+  const [period, setPeriod] = useState<"week" | "month1" | "month2" | "all">("week");
+  const [trendGranularity, setTrendGranularity] = useState<"weekly" | "monthly">("weekly");
+
   /* ─── 날짜 경계 계산 ─── */
   const today = now.toISOString().slice(0, 10);
 
@@ -119,10 +141,14 @@ export function AnalysisInsights({
   const prevWeekStartStr = prevWeekStart.toISOString().slice(0, 10);
   const prevWeekEndStr = prevWeekEnd.toISOString().slice(0, 10);
 
+  /* ─── 완료된 수업 (여러 useMemo에서 공유) ─── */
+  const completedSessions = useMemo(
+    () => sessions.filter((s) => s.status === "completed"),
+    [sessions]
+  );
+
   /* ─── 출석 계산 ─── */
   const attendance = useMemo(() => {
-    const completedSessions = sessions.filter((s) => s.status === "completed");
-
     // 이번 달 수업 참여
     const thisMonthPT = completedSessions.filter(
       (s) => s.date >= thisMonthStart && s.date <= today
@@ -180,13 +206,120 @@ export function AnalysisInsights({
       monthlyChangePct,
       weeklyChangePct,
     };
-  }, [sessions, personalLogs, thisMonthStart, today, prevMonthStart, prevMonthEnd, thisWeekStartStr, prevWeekStartStr, prevWeekEndStr]);
+  }, [completedSessions, personalLogs, thisMonthStart, today, prevMonthStart, prevMonthEnd, thisWeekStartStr, prevWeekStartStr, prevWeekEndStr]);
+
+  /* ─── ACTIVITY REPORT: 4개 기간(이번 주 / 이번 달 / 저번 달 / 전체 누적) ─── */
+  const activityPeriods = useMemo(() => {
+    const countRange = (start: string, end: string) => {
+      const pt = completedSessions.filter((s) => s.date >= start && s.date <= end).length;
+      const personal = personalLogs.filter((l) => l.log_date >= start && l.log_date <= end).length;
+      return { pt, personal, total: pt + personal };
+    };
+    const pct = (cur: number, prev: number) =>
+      prev > 0 ? Math.round(((cur - prev) / prev) * 100) : cur > 0 ? 100 : 0;
+
+    const thisMonth = monthRangeFromNow(now, 0);
+    const prevMonth = monthRangeFromNow(now, -1);
+    const prevPrevMonth = monthRangeFromNow(now, -2);
+
+    const weekCur = countRange(thisWeekStartStr, today);
+    const weekPrev = countRange(prevWeekStartStr, prevWeekEndStr);
+
+    const m1Cur = countRange(thisMonth.start, today);
+    const m1Prev = countRange(prevMonth.start, prevMonth.end);
+
+    const m2Cur = countRange(prevMonth.start, prevMonth.end);
+    const m2Prev = countRange(prevPrevMonth.start, prevPrevMonth.end);
+
+    const allDates = [
+      ...completedSessions.map((s) => s.date),
+      ...personalLogs.map((l) => l.log_date),
+    ].sort();
+    const allStart = allDates[0] ?? member.start_date ?? today;
+    const allCur = countRange(allStart, today);
+
+    return {
+      week: {
+        label: "이번 주",
+        ...weekCur,
+        changePct: pct(weekCur.total, weekPrev.total),
+        compareLabel: "저번 주 대비",
+        hasPrev: true,
+      },
+      month1: {
+        label: thisMonth.label,
+        ...m1Cur,
+        changePct: pct(m1Cur.total, m1Prev.total),
+        compareLabel: `${prevMonth.label} 대비`,
+        hasPrev: true,
+      },
+      month2: {
+        label: prevMonth.label,
+        ...m2Cur,
+        changePct: pct(m2Cur.total, m2Prev.total),
+        compareLabel: `${prevPrevMonth.label} 대비`,
+        hasPrev: true,
+      },
+      all: {
+        label: "전체 누적",
+        ...allCur,
+        changePct: null as number | null,
+        compareLabel: `${allStart.slice(0, 4)}.${allStart.slice(5, 7)}부터 누적`,
+        hasPrev: false,
+      },
+    };
+  }, [completedSessions, personalLogs, now, today, thisWeekStartStr, prevWeekStartStr, prevWeekEndStr, member.start_date]);
+
+  const selectedPeriod = activityPeriods[period];
+
+  /* ─── ATTENDANCE TREND: 최근 8주 / 최근 6개월 추이 ─── */
+  const weeklyTrend = useMemo(() => {
+    const weeks: { label: string; total: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const ws = new Date(
+        thisWeekStart.getFullYear(),
+        thisWeekStart.getMonth(),
+        thisWeekStart.getDate() - i * 7
+      );
+      const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+      const wsStr = ws.toISOString().slice(0, 10);
+      const weStr = we.toISOString().slice(0, 10);
+      const pt = completedSessions.filter((s) => s.date >= wsStr && s.date <= weStr).length;
+      const personal = personalLogs.filter((l) => l.log_date >= wsStr && l.log_date <= weStr).length;
+      weeks.push({ label: `${ws.getMonth() + 1}/${ws.getDate()}`, total: pt + personal });
+    }
+    return weeks;
+  }, [completedSessions, personalLogs, thisWeekStart]);
+
+  const monthlyTrend = useMemo(() => {
+    const months: { label: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const { start, end, label } = monthRangeFromNow(now, -i);
+      const rangeEnd = i === 0 ? today : end;
+      const pt = completedSessions.filter((s) => s.date >= start && s.date <= rangeEnd).length;
+      const personal = personalLogs.filter((l) => l.log_date >= start && l.log_date <= rangeEnd).length;
+      months.push({ label, total: pt + personal });
+    }
+    return months;
+  }, [completedSessions, personalLogs, now, today]);
+
+  const trendStats = useMemo(() => {
+    const avg = (arr: { total: number }[]) =>
+      arr.length > 0 ? Math.round((arr.reduce((s, x) => s + x.total, 0) / arr.length) * 10) / 10 : 0;
+    const activeSeries = trendGranularity === "weekly" ? weeklyTrend : monthlyTrend;
+    const first = activeSeries[0]?.total ?? 0;
+    const last = activeSeries[activeSeries.length - 1]?.total ?? 0;
+    const changePct = first > 0 ? Math.round(((last - first) / first) * 100) : last > 0 ? 100 : 0;
+    return {
+      weeklyAvg: avg(weeklyTrend),
+      monthlyAvg: avg(monthlyTrend),
+      changePct,
+    };
+  }, [weeklyTrend, monthlyTrend, trendGranularity]);
 
   /* ─── 4주 근력 성장률 ─── */
   const strengthGrowth = useMemo(() => {
-    const completed = sessions
-      .filter((s) => s.status === "completed")
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const completed = [...completedSessions].sort((a, b) => a.date.localeCompare(b.date));
 
     const nowForGrowth = new Date();
     const fourWeeksAgo = new Date(
@@ -235,7 +368,7 @@ export function AnalysisInsights({
       bestPct: bestGrowth,
       hasData: completed.length > 0,
     };
-  }, [sessions, recordsBySession]);
+  }, [completedSessions, recordsBySession]);
 
   /* ─── 캐릭터 결정 + 서사 ─── */
   const { charKey, narrative } = useMemo((): {
@@ -368,10 +501,32 @@ export function AnalysisInsights({
               ACTIVITY REPORT
             </h3>
             <p className="text-[11px] font-cond text-ink-3 leading-none">
-              {now.getMonth() + 1}월 1일 ~ 오늘 기준
+              기간을 선택해 활동량을 확인하세요
             </p>
           </div>
           <CalendarDays size={16} className="text-volt mb-1" />
+        </div>
+
+        {/* 기간 스위처 */}
+        <div
+          className="flex gap-1 p-1 rounded-xl"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          {(["week", "month1", "month2", "all"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriod(p)}
+              className="tap-haptic flex-1 px-2 py-1.5 rounded-lg text-[11px] font-cond font-bold transition-all"
+              style={
+                period === p
+                  ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
+                  : { color: "var(--ink-3)" }
+              }
+            >
+              {activityPeriods[p].label}
+            </button>
+          ))}
         </div>
 
         {/* 3단 출석 카드 */}
@@ -379,46 +534,168 @@ export function AnalysisInsights({
           <AttendanceMini
             icon={UserCheck}
             label="수업 참여"
-            value={attendance.thisMonthPT}
+            value={selectedPeriod.pt}
             unit="회"
             color="#D3FF52"
           />
           <AttendanceMini
             icon={Dumbbell}
             label="개인 운동"
-            value={attendance.thisMonthPersonal}
+            value={selectedPeriod.personal}
             unit="회"
             color="#5BA8FF"
           />
           <AttendanceMini
             icon={Flame}
             label="총합"
-            value={attendance.thisMonthTotal}
+            value={selectedPeriod.total}
             unit="회"
             color="#ff8c00"
             highlight
           />
         </div>
 
-        {/* 주간/월간 비교 */}
-        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          <p
-            className="text-[10px] font-cond font-bold text-ink-2 tracking-wide-2 uppercase leading-none"
+        {/* 직전 기간 대비 */}
+        <div className="pt-card flex items-center justify-between gap-3" style={{ padding: 18 }}>
+          <div className="flex flex-col gap-1 min-w-0">
+            <p className="text-[10px] font-cond font-bold text-ink-2 tracking-wide-2 uppercase leading-none">
+              {selectedPeriod.compareLabel}
+            </p>
+            {!selectedPeriod.hasPrev && (
+              <p className="text-[10px] font-cond text-ink-4 leading-none">
+                첫 기록부터 지금까지의 누적 활동량입니다
+              </p>
+            )}
+          </div>
+          {selectedPeriod.changePct !== null && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              {selectedPeriod.changePct >= 0 ? (
+                <TrendingUp size={14} className="text-volt" />
+              ) : (
+                <TrendingDown size={14} className="text-danger" />
+              )}
+              <span
+                className="font-display tabular-nums leading-none"
+                style={{
+                  fontSize: 20,
+                  color: selectedPeriod.changePct >= 0 ? "var(--volt)" : "var(--danger)",
+                }}
+              >
+                {selectedPeriod.changePct >= 0 ? "+" : ""}
+                {selectedPeriod.changePct}%
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ─── 1-2. 출석 추이 (주간/월간) ─── */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <h3
+            className="font-display text-ink-0 leading-none tracking-wide uppercase"
+            style={{ fontSize: 20 }}
           >
-            활동량 변화 비교
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <CompareBar
-              label="이번 주 vs 저번 주"
-              thisVal={attendance.thisWeekPT + attendance.thisWeekPersonal}
-              prevVal={attendance.prevWeekPT}
-              changePct={attendance.weeklyChangePct}
+            ATTENDANCE TREND
+          </h3>
+          <div
+            className="flex gap-1 p-1 rounded-xl shrink-0"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            {(["weekly", "monthly"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setTrendGranularity(g)}
+                className="tap-haptic px-2.5 py-1 rounded-lg text-[10px] font-cond font-bold transition-all"
+                style={
+                  trendGranularity === g
+                    ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
+                    : { color: "var(--ink-3)" }
+                }
+              >
+                {g === "weekly" ? "WEEKLY" : "MONTHLY"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          <ResponsiveContainer width="100%" height={160}>
+            <AreaChart
+              data={trendGranularity === "weekly" ? weeklyTrend : monthlyTrend}
+              margin={{ top: 10, right: 8, left: -18, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="attendanceTrendGlow" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#D3FF52" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#D3FF52" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="label"
+                tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+                axisLine={false}
+                tickLine={false}
+                width={24}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "rgba(8,8,8,0.95)",
+                  border: "1px solid #333",
+                  borderRadius: 10,
+                  fontFamily: "Barlow Condensed",
+                  fontSize: 12,
+                }}
+              />
+              <ReferenceLine
+                y={trendGranularity === "weekly" ? 2 : 8}
+                stroke="#5BA8FF"
+                strokeDasharray="4 4"
+                label={{
+                  value: "ACSM 권장",
+                  position: "insideTopRight",
+                  fill: "#5BA8FF",
+                  fontSize: 10,
+                  fontFamily: "Barlow Condensed",
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="total"
+                stroke="#D3FF52"
+                strokeWidth={2.5}
+                fillOpacity={1}
+                fill="url(#attendanceTrendGlow)"
+                dot={{ r: 3.5, fill: "#D3FF52", stroke: "#080808", strokeWidth: 2 }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+
+          <div className="grid grid-cols-3 gap-2">
+            <MiniMetric
+              label="주 평균 출석"
+              value={`${trendStats.weeklyAvg}회`}
+              sub="최근 8주"
+              positive
             />
-            <CompareBar
-              label="이번 달 vs 저번 달"
-              thisVal={attendance.thisMonthPT}
-              prevVal={attendance.prevMonthPT}
-              changePct={attendance.monthlyChangePct}
+            <MiniMetric
+              label="월 평균 출석"
+              value={`${trendStats.monthlyAvg}회`}
+              sub="최근 6개월"
+              positive
+            />
+            <MiniMetric
+              label="초기 대비 변화"
+              value={`${trendStats.changePct >= 0 ? "+" : ""}${trendStats.changePct}%`}
+              sub={trendGranularity === "weekly" ? "8주 전 대비" : "6개월 전 대비"}
+              positive={trendStats.changePct >= 0}
             />
           </div>
         </div>
@@ -524,7 +801,7 @@ export function AnalysisInsights({
           JIYONG PT INSIGHTS
         </h3>
         <p className="text-[11px] font-cond text-ink-3 leading-none -mt-2">
-          ACSM 가이드라인 기반 · 신지용 트레이너 9년 경력 분석
+          ACSM 가이드라인 기반 · 신지용 트레이너 6년 경력 분석
         </p>
 
         <div className="flex flex-col gap-3">
@@ -581,77 +858,6 @@ function AttendanceMini({
         {value}
         <span className="text-ink-3 text-xs ml-0.5">{unit}</span>
       </p>
-    </div>
-  );
-}
-
-function CompareBar({
-  label,
-  thisVal,
-  prevVal,
-  changePct,
-}: {
-  label: string;
-  thisVal: number;
-  prevVal: number;
-  changePct: number;
-}) {
-  const isUp = changePct >= 0;
-  const maxVal = Math.max(thisVal, prevVal, 1);
-
-  return (
-    <div className="flex flex-col gap-2.5">
-      <p className="text-[10px] font-cond text-ink-3 leading-none">{label}</p>
-
-      {/* 바 */}
-      <div className="flex flex-col gap-1.5">
-        <div className="flex items-center gap-2">
-          <div
-            className="rounded-full"
-            style={{
-              height: 8,
-              width: `${(thisVal / maxVal) * 100}%`,
-              minWidth: 4,
-              background: "var(--grad-volt-bar)",
-              boxShadow: "0 0 8px var(--volt-glow-2)",
-            }}
-          />
-          <span className="text-[10px] font-cond font-bold text-volt leading-none tabular-nums">
-            {thisVal}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div
-            className="rounded-full"
-            style={{
-              height: 8,
-              width: `${(prevVal / maxVal) * 100}%`,
-              minWidth: prevVal > 0 ? 4 : 0,
-              background: "#2a2a2a",
-              border: "1px solid var(--pt-5)",
-            }}
-          />
-          <span className="text-[10px] font-cond text-ink-3 leading-none tabular-nums">
-            {prevVal}
-          </span>
-        </div>
-      </div>
-
-      {/* 변화율 */}
-      <div className="flex items-center gap-1">
-        {isUp ? (
-          <TrendingUp size={10} className="text-volt" />
-        ) : (
-          <TrendingDown size={10} className="text-danger" />
-        )}
-        <span
-          className="text-[10px] font-cond font-bold leading-none"
-          style={{ color: isUp ? "var(--volt)" : "var(--danger)" }}
-        >
-          {isUp ? "+" : ""}
-          {changePct}%
-        </span>
-      </div>
     </div>
   );
 }
