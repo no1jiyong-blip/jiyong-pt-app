@@ -12,6 +12,8 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  AreaChart,
+  Area,
 } from "recharts";
 import { supabase } from "@/lib/supabase";
 import type { BodyMeasurement } from "@/lib/types";
@@ -41,6 +43,31 @@ const TARGET_SMM: Record<"male" | "female", { elite: number; good: number; fair:
   male:   { elite: 38, good: 35, fair: 32 },
   female: { elite: 26, good: 23, fair: 21 },
 };
+
+/* 복부지방률(WHR) 기준 — WHO 허리엉덩이둘레비 위험기준(남 0.90 / 여 0.85)을 Elite~Fair 3단계로 세분화 */
+const WHR_BANDS: Record<"male" | "female", { elite: number; good: number; fair: number }> = {
+  male:   { elite: 0.85, good: 0.90, fair: 0.95 },
+  female: { elite: 0.78, good: 0.85, fair: 0.90 },
+};
+
+/**
+ * Elite/Good/Fair 3단계 기준치를 0~100 연속 퍼센타일로 변환 (GrowthTab의 벤치마크 보간 방식과 동일한 원리).
+ * higherIsBetter=false면 값이 낮을수록 좋은 지표(체지방률·WHR 등)로 취급.
+ */
+function gradePercentile(
+  value: number,
+  elite: number,
+  good: number,
+  fair: number,
+  higherIsBetter: boolean
+): number {
+  const dir = higherIsBetter ? 1 : -1;
+  const e = elite * dir, gBand = good * dir, f = fair * dir, v = value * dir;
+  if (v >= e) return 99;
+  if (v >= gBand) return 75 + ((v - gBand) / Math.max(1e-6, e - gBand)) * 24;
+  if (v >= f) return 50 + ((v - f) / Math.max(1e-6, gBand - f)) * 25;
+  return Math.max(1, (v / Math.max(1e-6, f)) * 50);
+}
 
 type ACSMGrade = "Elite" | "Good" | "Fair" | "Poor";
 
@@ -89,6 +116,10 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
   const [history, setHistory] = useState<BodyMeasurement[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [trendPeriod, setTrendPeriod] = useState<"1M" | "3M" | "ALL">("3M");
+  const [trendMetric, setTrendMetric] = useState<"skeletal_muscle_kg" | "body_fat_pct" | "weight_kg">(
+    "skeletal_muscle_kg"
+  );
 
   const ageNum = getAge(age ?? null);
   const ageGroup: "20s" | "30s" | "40s" | "50s" =
@@ -146,9 +177,67 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
   const chartData = history.map((h) => ({
     date: h.measured_at.slice(5),
     근육: h.skeletal_muscle_kg ?? 0,
-    체지방: h.body_fat_pct ?? 0,
+    체지방률: h.body_fat_pct ?? 0,
+    체지방량: h.body_fat_kg ?? 0,
     체중: h.weight_kg ?? 0,
   }));
+
+  /* 지표별 0~100 퍼센타일 — 실측 기준치(TARGET_SMM/ACSM_BF/WHR_BANDS) 기반, 가짜 수치 없음 */
+  const smmPercentile = latest?.skeletal_muscle_kg != null
+    ? gradePercentile(latest.skeletal_muscle_kg, TARGET_SMM[g].elite, TARGET_SMM[g].good, TARGET_SMM[g].fair, true)
+    : null;
+  const bfPercentile = latest?.body_fat_pct != null
+    ? gradePercentile(latest.body_fat_pct, ACSM_BF[g][ageGroup].elite, ACSM_BF[g][ageGroup].good, ACSM_BF[g][ageGroup].fair, false)
+    : null;
+  const whrPercentile = latest?.whr != null
+    ? gradePercentile(latest.whr, WHR_BANDS[g].elite, WHR_BANDS[g].good, WHR_BANDS[g].fair, false)
+    : null;
+  const fatKgPercentile = (latest?.body_fat_kg != null && latest?.weight_kg)
+    ? gradePercentile(
+        latest.body_fat_kg,
+        (latest.weight_kg * ACSM_BF[g][ageGroup].elite) / 100,
+        (latest.weight_kg * ACSM_BF[g][ageGroup].good) / 100,
+        (latest.weight_kg * ACSM_BF[g][ageGroup].fair) / 100,
+        false
+      )
+    : null;
+
+  /* 체중/BMR은 성별·연령 표준치가 없어 "개인 측정 기록 내 위치"로 대체 (표준 아님, 과장 금지) */
+  function personalRangePercent(key: "weight_kg" | "bmr_kcal"): number | null {
+    const vals = history.map((h) => h[key]).filter((v): v is number => v != null);
+    const cur = latest?.[key];
+    if (vals.length < 2 || cur == null) return null;
+    const lo = Math.min(...vals), hi = Math.max(...vals);
+    if (hi === lo) return 50;
+    return Math.round(((cur - lo) / (hi - lo)) * 100);
+  }
+  const weightRangePct = personalRangePercent("weight_kg");
+  const bmrRangePct = personalRangePercent("bmr_kcal");
+
+  /* BODY TREND 섹션 — 기간 필터링 */
+  const trendHistory = useMemo(() => {
+    if (trendPeriod === "ALL" || history.length === 0) return history;
+    const days = trendPeriod === "1M" ? 30 : 90;
+    const cutoff = new Date(history[history.length - 1].measured_at);
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    const filtered = history.filter((h) => h.measured_at >= cutoffStr);
+    return filtered.length >= 2 ? filtered : history;
+  }, [history, trendPeriod]);
+
+  /* 순수 리컴포지션 여부 판정 (근육 증가 + 체지방 감소 동시 달성) */
+  const muscleDeltaTotal = latest?.skeletal_muscle_kg != null && first?.skeletal_muscle_kg != null
+    ? Math.round((latest.skeletal_muscle_kg - first.skeletal_muscle_kg) * 10) / 10
+    : null;
+  const fatDeltaTotal = latest?.body_fat_kg != null && first?.body_fat_kg != null
+    ? Math.round((latest.body_fat_kg - first.body_fat_kg) * 10) / 10
+    : null;
+  const recompLabel =
+    muscleDeltaTotal == null || fatDeltaTotal == null ? null
+    : muscleDeltaTotal > 0 && fatDeltaTotal < 0 ? "순수 리컴포지션"
+    : muscleDeltaTotal > 0 && fatDeltaTotal >= 0 ? "벌크업 진행 중"
+    : muscleDeltaTotal <= 0 && fatDeltaTotal < 0 ? "체지방 감량 중"
+    : "변화 적음";
 
   if (loading) {
     return (
@@ -214,6 +303,21 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
             <p className="text-sm text-ink-1 leading-relaxed">{gradeMeta.desc}</p>
 
+            {/* 동년배 대비 3대 퍼센타일 요약 칩 (TARGET_SMM/ACSM_BF/WHR_BANDS 실측 기준치 보간) */}
+            {(smmPercentile != null || bfPercentile != null || whrPercentile != null) && (
+              <div className="grid grid-cols-3 gap-2">
+                {smmPercentile != null && (
+                  <PercentileChip label="골격근 수준" topPct={Math.max(1, Math.round(100 - smmPercentile))} color="var(--volt)" />
+                )}
+                {bfPercentile != null && (
+                  <PercentileChip label="체지방 수준" topPct={Math.max(1, Math.round(100 - bfPercentile))} color="var(--info)" />
+                )}
+                {whrPercentile != null && (
+                  <PercentileChip label="복부지방 수준" topPct={Math.max(1, Math.round(100 - whrPercentile))} color="var(--ink-0)" />
+                )}
+              </div>
+            )}
+
             {/* 체지방률 게이지 */}
             {latest.body_fat_pct != null && (
               <BFGauge
@@ -223,11 +327,168 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                 color={gradeMeta.color}
               />
             )}
+
+            {/* 체형 포지션 맵 (4분면) */}
+            {latest.body_fat_pct != null && latest.skeletal_muscle_kg != null && (
+              <BodyShapeMap
+                bodyFatPct={latest.body_fat_pct}
+                smmKg={latest.skeletal_muscle_kg}
+                gender={g}
+                ageGroup={ageGroup}
+                bare
+              />
+            )}
           </div>
         </section>
       )}
 
-      {/* ─── 2. 6종 지표 카드 ─── */}
+      {/* ─── 2. BODY TREND — 기간별 체성분 변화 추이 ─── */}
+      {history.length >= 2 && (
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle en="BODY TREND" ko="기간별 체성분 누적 변화 추이" />
+            <div
+              className="flex gap-1 p-1 rounded-xl shrink-0"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+            >
+              {(["1M", "3M", "ALL"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setTrendPeriod(p)}
+                  className="tap-haptic px-2.5 py-1 rounded-lg text-[10px] font-cond font-bold transition-all"
+                  style={
+                    trendPeriod === p
+                      ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
+                      : { color: "var(--ink-3)" }
+                  }
+                >
+                  {p === "1M" ? "1개월" : p === "3M" ? "3개월" : "전체"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+            {/* 지표 전환 탭 */}
+            <div className="grid grid-cols-3 gap-2">
+              <TrendTab
+                active={trendMetric === "skeletal_muscle_kg"}
+                onClick={() => setTrendMetric("skeletal_muscle_kg")}
+                label="골격근량"
+                value={latest.skeletal_muscle_kg}
+                unit="kg"
+                delta={muscleDeltaTotal != null ? muscleDeltaTotal : null}
+                color="var(--volt)"
+              />
+              <TrendTab
+                active={trendMetric === "body_fat_pct"}
+                onClick={() => setTrendMetric("body_fat_pct")}
+                label="체지방률"
+                value={latest.body_fat_pct}
+                unit="%"
+                delta={
+                  latest.body_fat_pct != null && first?.body_fat_pct != null
+                    ? Math.round((latest.body_fat_pct - first.body_fat_pct) * 10) / 10
+                    : null
+                }
+                color="var(--info)"
+              />
+              <TrendTab
+                active={trendMetric === "weight_kg"}
+                onClick={() => setTrendMetric("weight_kg")}
+                label="체중"
+                value={latest.weight_kg}
+                unit="kg"
+                delta={
+                  latest.weight_kg != null && first?.weight_kg != null
+                    ? Math.round((latest.weight_kg - first.weight_kg) * 10) / 10
+                    : null
+                }
+                color="var(--ink-0)"
+              />
+            </div>
+
+            {/* 추이 차트 */}
+            <ResponsiveContainer width="100%" height={176}>
+              <AreaChart data={trendHistory} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="bodyTrendGlow" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="0%"
+                      stopColor={trendMetric === "skeletal_muscle_kg" ? "#D3FF52" : trendMetric === "body_fat_pct" ? "#4488ff" : "#cbd5e1"}
+                      stopOpacity={0.3}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={trendMetric === "skeletal_muscle_kg" ? "#D3FF52" : trendMetric === "body_fat_pct" ? "#4488ff" : "#cbd5e1"}
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey={(d: BodyMeasurement) => d.measured_at.slice(5)}
+                  tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={["dataMin - 1", "dataMax + 1"]}
+                  tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "rgba(8,8,8,0.95)",
+                    border: "1px solid #333",
+                    borderRadius: 10,
+                    fontFamily: "Barlow Condensed",
+                    fontSize: 12,
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey={trendMetric}
+                  stroke={trendMetric === "skeletal_muscle_kg" ? "#D3FF52" : trendMetric === "body_fat_pct" ? "#4488ff" : "#cbd5e1"}
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#bodyTrendGlow)"
+                  dot={{
+                    r: 3.5,
+                    fill: trendMetric === "skeletal_muscle_kg" ? "#D3FF52" : trendMetric === "body_fat_pct" ? "#4488ff" : "#cbd5e1",
+                    stroke: "#080808",
+                    strokeWidth: 2,
+                  }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+
+            {/* 누적 변화 요약 배너 */}
+            {recompLabel && (
+              <div
+                className="flex items-center justify-between gap-3 pt-3 text-xs"
+                style={{ borderTop: "1px solid var(--pt-5)" }}
+              >
+                <span className="text-ink-3 font-cond">{first!.measured_at.slice(5)} 최초 측정 대비</span>
+                <span className="font-bold text-ink-0">
+                  근육{" "}
+                  <span style={{ color: "var(--volt)" }} className="font-black">
+                    {muscleDeltaTotal! > 0 ? "+" : ""}{muscleDeltaTotal}kg
+                  </span>{" "}
+                  · 체지방{" "}
+                  <span style={{ color: "var(--info)" }} className="font-black">
+                    {fatDeltaTotal! > 0 ? "+" : ""}{fatDeltaTotal}kg
+                  </span>{" "}
+                  {recompLabel}
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── 3. 6종 지표 카드 ─── */}
       <section className="flex flex-col gap-4">
         <SectionTitle en="INBODY METRICS" ko="체성분 주요 지표" />
 
@@ -245,6 +506,8 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             onToggle={() => setExpandedIdx(expandedIdx === 0 ? null : 0)}
             historyData={chartData}
             historyKey="체중"
+            rangePercent={weightRangePct}
+            rangeCaptions={["최저", "최근 변화폭", "최고"]}
           />
           <MetricCard
             icon={<Zap size={13} />}
@@ -258,6 +521,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             onToggle={() => setExpandedIdx(expandedIdx === 1 ? null : 1)}
             historyData={chartData}
             historyKey="근육"
+            rangePercent={smmPercentile}
           />
           <MetricCard
             icon={<Flame size={13} />}
@@ -271,7 +535,8 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             isExpanded={expandedIdx === 2}
             onToggle={() => setExpandedIdx(expandedIdx === 2 ? null : 2)}
             historyData={chartData}
-            historyKey="체지방"
+            historyKey="체지방량"
+            rangePercent={fatKgPercentile}
           />
           <MetricCard
             icon={<Flame size={13} />}
@@ -285,7 +550,8 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             isExpanded={expandedIdx === 3}
             onToggle={() => setExpandedIdx(expandedIdx === 3 ? null : 3)}
             historyData={chartData}
-            historyKey="체지방"
+            historyKey="체지방률"
+            rangePercent={bfPercentile}
           />
           <MetricCard
             icon={<Target size={13} />}
@@ -296,6 +562,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             color="#8c78ff"
             inverse
             expandable={false}
+            rangePercent={whrPercentile}
           />
           <MetricCard
             icon={<Zap size={13} />}
@@ -305,22 +572,11 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             prevValue={first?.bmr_kcal}
             color="#5BA8FF"
             expandable={false}
+            rangePercent={bmrRangePct}
+            rangeCaptions={["최저", "최근 변화폭", "최고"]}
           />
         </div>
       </section>
-
-      {/* ─── 3. 체형 맵 (산점도 형태) ─── */}
-      {latest.body_fat_pct != null && latest.skeletal_muscle_kg != null && (
-        <section className="flex flex-col gap-4">
-          <SectionTitle en="BODY COMPOSITION MAP" ko="체형 위치 맵" />
-          <BodyShapeMap
-            bodyFatPct={latest.body_fat_pct}
-            smmKg={latest.skeletal_muscle_kg}
-            gender={g}
-            ageGroup={ageGroup}
-          />
-        </section>
-      )}
 
       {/* ─── 4. 수준 격차 분석 (Gap Analysis) ─── */}
       {grade && grade !== "Elite" && latest.skeletal_muscle_kg != null && latest.body_fat_pct != null && (
@@ -402,32 +658,6 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
         </section>
       )}
 
-      {/* ─── 7. 히스토리 차트 ─── */}
-      {history.length >= 2 && (
-        <section className="flex flex-col gap-4">
-          <SectionTitle en="MEASUREMENT HISTORY" ko="3개월 인바디 변화 추이" />
-          <div className="pt-card flex flex-col gap-5" style={{ padding: 22 }}>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={chartData} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
-                <XAxis dataKey="date" tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: "rgba(8,8,8,0.95)", border: "1px solid #333", borderRadius: 10, fontFamily: "Barlow Condensed", fontSize: 12 }} />
-                <Line type="monotone" dataKey="근육" stroke="#D3FF52" strokeWidth={2.5} dot={{ fill: "#D3FF52", r: 4 }} />
-                <Line type="monotone" dataKey="체지방" stroke="#ff8c00" strokeWidth={2} strokeDasharray="4 4" dot={{ fill: "#ff8c00", r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="flex gap-5 justify-center pt-2 border-t border-pt-5">
-              {[["골격근량", "#D3FF52"], ["체지방률", "#ff8c00"]].map(([label, color]) => (
-                <div key={label} className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full" style={{ background: color }} />
-                  <span className="text-[11px] font-cond text-ink-2 leading-none">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
@@ -450,11 +680,63 @@ function SectionTitle({ en, ko }: { en: string; ko: string }) {
   );
 }
 
+/* 동년배 대비 퍼센타일 요약 칩 (HERO 카드용) */
+function PercentileChip({ label, topPct, color }: { label: string; topPct: number; color: string }) {
+  return (
+    <div
+      className="rounded-2xl p-2.5 text-center"
+      style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.05)" }}
+    >
+      <span className="text-[10px] font-cond font-bold text-ink-3 block leading-none mb-1">{label}</span>
+      <span className="font-mono-num font-black text-sm" style={{ color }}>상위 {topPct}%</span>
+    </div>
+  );
+}
+
+/* BODY TREND 지표 전환 탭 */
+function TrendTab({
+  active, onClick, label, value, unit, delta, color,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  value: number | null | undefined;
+  unit: string;
+  delta: number | null;
+  color: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="tap-haptic p-2.5 rounded-2xl text-left transition-all"
+      style={
+        active
+          ? { background: `${color}1A`, border: `1px solid ${color}50` }
+          : { background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }
+      }
+    >
+      <span className="text-[10px] font-cond font-bold text-ink-3 block leading-none">{label}</span>
+      <div className="flex items-baseline justify-between mt-1 gap-1">
+        <span className="font-mono-num font-extrabold text-ink-0 text-sm leading-none">
+          {value != null ? value : "—"}{unit}
+        </span>
+        {delta != null && (
+          <span className="font-mono-num font-bold text-[10px] leading-none shrink-0" style={{ color }}>
+            {delta > 0 ? "+" : ""}{delta}{unit}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
 /* 개별 지표 카드 */
 function MetricCard({
   icon, label, value, unit, prevValue, color, inverse = false,
   expandable = false, isExpanded = false, onToggle,
   historyData, historyKey,
+  rangePercent, rangeCaptions,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -468,6 +750,10 @@ function MetricCard({
   onToggle?: () => void;
   historyData?: { date: string; [key: string]: string | number }[];
   historyKey?: string;
+  /** 0~100: 표준 범위(또는 개인 기록 범위) 내 현재 위치 — 없으면 트랙 미표시 */
+  rangePercent?: number | null;
+  /** 트랙 하단 3단 캡션 (기본: 표준이하/표준/표준이상) */
+  rangeCaptions?: [string, string, string];
 }) {
   const delta =
     value != null && prevValue != null ? Math.round((value - prevValue) * 10) / 10 : null;
@@ -503,6 +789,21 @@ function MetricCard({
         >
           {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}{unit} <span className="text-ink-4">· 시작 대비</span>
         </p>
+      )}
+      {rangePercent != null && (
+        <div className="mb-0.5">
+          <div className="w-full rounded-full relative overflow-hidden" style={{ height: 6, background: "var(--pt-4)" }}>
+            <div
+              className="absolute top-0 bottom-0 rounded-full"
+              style={{ width: 4, left: `${Math.max(0, Math.min(96, rangePercent))}%`, background: color, boxShadow: `0 0 6px ${color}` }}
+            />
+          </div>
+          <div className="flex justify-between text-[8px] font-cond text-ink-4 mt-1">
+            <span>{(rangeCaptions ?? ["표준이하", "표준", "표준이상"])[0]}</span>
+            <span>{(rangeCaptions ?? ["표준이하", "표준", "표준이상"])[1]}</span>
+            <span>{(rangeCaptions ?? ["표준이하", "표준", "표준이상"])[2]}</span>
+          </div>
+        </div>
       )}
       {expandable && (
         <div className="flex items-center gap-1 mt-1">
@@ -575,14 +876,15 @@ function BFGauge({
   );
 }
 
-/* 체형 맵 */
+/* 체형 맵 — 골격근량 × 체지방률 4분면 포지션 맵 */
 function BodyShapeMap({
-  bodyFatPct, smmKg, gender, ageGroup,
+  bodyFatPct, smmKg, gender, ageGroup, bare = false,
 }: {
   bodyFatPct: number;
   smmKg: number;
   gender: "male" | "female";
   ageGroup: "20s" | "30s" | "40s" | "50s";
+  bare?: boolean;
 }) {
   const ref = ACSM_BF[gender][ageGroup];
   const tgt = TARGET_SMM[gender];
@@ -602,36 +904,44 @@ function BodyShapeMap({
     { label: "Fair",  x: ((ref.fair  - xMin) / (xMax - xMin)) * 100, color: "#ff8c00" },
   ];
 
-  return (
-    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-      <p className="text-[10px] font-cond text-ink-2 leading-relaxed">
-        X축: 체지방률(%) · Y축: 골격근량(kg) · 점: 현재 위치
-      </p>
+  const body = (
+    <>
+      <div className="flex items-center justify-between text-[10px] font-cond text-ink-3">
+        <span>체형 포지션 맵 (골격근량 × 체지방률)</span>
+        <span className="font-bold" style={{ color: "var(--volt)" }}>● 현재 내 위치</span>
+      </div>
       <div
         className="relative rounded-2xl overflow-hidden"
         style={{ height: 200, background: "var(--pt-1)", border: "1px solid var(--pt-5)" }}
       >
-        {/* 구간 세로선 */}
+        {/* 중심 십자 기준선 (4분면 구분) */}
+        <div className="absolute inset-y-0 left-1/2 w-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+        <div className="absolute inset-x-0 top-1/2 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+        {/* 4분면 워터마크 라벨 — 좌상: 근육형, 우상: 파워형, 좌하: 마른형, 우하: 체지방과다 */}
+        <span className="absolute top-2.5 left-3 text-[9px] font-cond font-black uppercase tracking-wider leading-none" style={{ color: "rgba(211,255,82,0.45)" }}>
+          ATHLETIC · 근육형
+        </span>
+        <span className="absolute top-2.5 right-3 text-[9px] font-cond font-bold uppercase tracking-wider leading-none text-ink-4">
+          POWER · 과체중근육
+        </span>
+        <span className="absolute bottom-2.5 left-3 text-[9px] font-cond font-bold uppercase tracking-wider leading-none text-ink-4">
+          SLIM · 마른형
+        </span>
+        <span className="absolute bottom-2.5 right-3 text-[9px] font-cond font-black uppercase tracking-wider leading-none" style={{ color: "rgba(255,85,119,0.4)" }}>
+          HIGH FAT · 체지방과다
+        </span>
+
+        {/* 구간 세로선 (ACSM Elite/Good/Fair 체지방률 기준) */}
         {zones.map((z) => (
           <div
             key={z.label}
             className="absolute top-0 bottom-0"
-            style={{
-              left: `${z.x}%`,
-              width: 1,
-              background: `${z.color}40`,
-            }}
-          >
-            <span
-              className="absolute top-2 text-[8px] font-cond leading-none"
-              style={{ color: z.color, transform: "translateX(-50%)" }}
-            >
-              {z.label}
-            </span>
-          </div>
+            style={{ left: `${z.x}%`, width: 1, background: `${z.color}40` }}
+          />
         ))}
 
-        {/* 목표 가로선 */}
+        {/* 목표 가로선 (Good 등급 골격근량 기준) */}
         <div
           className="absolute left-0 right-0"
           style={{
@@ -641,39 +951,34 @@ function BodyShapeMap({
           }}
         />
 
-        {/* 현재 위치 점 */}
+        {/* 현재 위치 핀포인트 + 펄스 링 + 수치 콜아웃 */}
         <div
-          className="absolute anim-pulse"
-          style={{
-            left: `${Math.max(2, Math.min(96, xPct))}%`,
-            top: `${Math.max(4, Math.min(94, yPct))}%`,
-            transform: "translate(-50%, -50%)",
-          }}
+          className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10"
+          style={{ top: `${Math.max(4, Math.min(94, yPct))}%`, left: `${Math.max(2, Math.min(96, xPct))}%` }}
         >
-          <div
-            className="rounded-full"
-            style={{
-              width: 16, height: 16,
-              background: "#D3FF52",
-              border: "3px solid #000",
-              boxShadow: "0 0 14px rgba(211,255,82,0.8)",
-            }}
-          />
-        </div>
-
-        {/* 축 라벨 */}
-        <div className="absolute bottom-2 left-0 right-0 flex justify-between px-3">
-          <span className="text-[8px] font-cond text-ink-4">낮은 체지방</span>
-          <span className="text-[8px] font-cond text-ink-4">높은 체지방</span>
+          <div className="relative flex items-center justify-center">
+            <span className="w-7 h-7 rounded-full absolute anim-pulse" style={{ background: "rgba(211,255,82,0.25)" }} />
+            <span
+              className="w-3.5 h-3.5 rounded-full"
+              style={{ background: "var(--volt)", border: "2px solid #000", boxShadow: "0 0 12px var(--volt-glow-2)" }}
+            />
+          </div>
+          <span
+            className="mt-1.5 px-2 py-0.5 rounded-full text-[9px] font-cond font-black leading-none whitespace-nowrap shadow-lg"
+            style={{ background: "rgba(0,0,0,0.9)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
+          >
+            {smmKg}kg · {bodyFatPct}%
+          </span>
         </div>
       </div>
+    </>
+  );
 
-      <p className="text-xs font-cond text-ink-2 leading-relaxed">
-        현재 체지방률{" "}
-        <span className="text-volt font-bold">{bodyFatPct}%</span> ·
-        골격근량{" "}
-        <span className="text-volt font-bold">{smmKg}kg</span>
-      </p>
+  if (bare) return <div className="flex flex-col gap-3">{body}</div>;
+
+  return (
+    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+      {body}
     </div>
   );
 }
