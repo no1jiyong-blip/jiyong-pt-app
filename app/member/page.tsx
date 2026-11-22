@@ -11,7 +11,6 @@ import type {
   Homework,
   PersonalLog,
 } from "@/lib/types";
-import { getWeekStartISO } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/Header";
 import { BottomNav, type TabKey } from "@/components/member/BottomNav";
 import { HomeTab } from "@/components/member/tabs/HomeTab";
@@ -63,12 +62,11 @@ export default function MemberDashboard() {
       setRecordsBySession(grouped);
     }
 
-    const weekStart = getWeekStartISO();
     const { data: hw } = await supabase
       .from("homework")
       .select("*")
       .eq("member_id", memberId)
-      .eq("week_start", weekStart)
+      .order("week_start", { ascending: false })
       .order("created_at", { ascending: true });
     setHomework((hw ?? []) as Homework[]);
 
