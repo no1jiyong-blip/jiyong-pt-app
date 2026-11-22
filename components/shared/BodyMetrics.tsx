@@ -3,11 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Target, Zap, Flame, Activity } from "lucide-react";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   LineChart,
@@ -554,22 +551,6 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
           />
         </div>
       </section>
-
-      {/* ─── 4. 수준 격차 분석 (Gap Analysis) ─── */}
-      {grade && grade !== "Elite" && latest.skeletal_muscle_kg != null && latest.body_fat_pct != null && (
-        <section className="flex flex-col gap-4">
-          <SectionTitle en="GAP ANALYSIS" ko="다음 등급까지 격차 분석" />
-          <GapAnalysis
-            grade={grade}
-            gender={g}
-            ageGroup={ageGroup}
-            currentSMM={latest.skeletal_muscle_kg}
-            currentBFPct={latest.body_fat_pct}
-            currentWeight={latest.weight_kg ?? 70}
-          />
-        </section>
-      )}
-
     </div>
   );
 }
@@ -909,119 +890,4 @@ function BFGauge({
   );
 }
 
-/* 격차 분석 (중첩 막대) */
-function GapAnalysis({
-  grade, gender, ageGroup, currentSMM, currentBFPct,
-}: {
-  grade: ACSMGrade;
-  gender: "male" | "female";
-  ageGroup: "20s" | "30s" | "40s" | "50s";
-  currentSMM: number;
-  currentBFPct: number;
-  currentWeight: number;
-}) {
-  const nextGrade: ACSMGrade =
-    grade === "Poor" ? "Fair" : grade === "Fair" ? "Good" : "Elite";
-  const nextMeta = GRADE_META[nextGrade];
-
-  const targetBF  = ACSM_BF[gender][ageGroup][nextGrade.toLowerCase() as "elite" | "good" | "fair"];
-  const targetSMM = TARGET_SMM[gender][nextGrade.toLowerCase() as "elite" | "good" | "fair"];
-
-  const smmDelta = Math.max(0, Math.round((targetSMM - currentSMM) * 10) / 10);
-  const bfDelta  = Math.max(0, Math.round((currentBFPct - targetBF) * 10) / 10);
-
-  const chartData = [
-    {
-      label: "골격근량 (kg)",
-      현재: currentSMM,
-      목표: targetSMM,
-    },
-    {
-      label: "체지방률 (%)",
-      현재: currentBFPct,
-      목표: targetBF,
-    },
-  ];
-
-  // 칼로리 계산
-  const calDeficit = Math.round(bfDelta * 7700 / 120); // 체지방 1% ≈ 체중의 1% ≈ 칼로리
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div
-        className="pt-card flex flex-col gap-4"
-        style={{
-          padding: 22,
-          background: `linear-gradient(160deg, ${nextMeta.bg} 0%, rgba(20,20,20,0.88) 70%)`,
-          borderColor: nextMeta.border,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <p className="text-[10px] font-cond text-ink-3 leading-none">다음 목표 등급</p>
-          <span
-            className="font-display leading-none uppercase"
-            style={{ fontSize: 20, color: nextMeta.color }}
-          >
-            {nextGrade}
-          </span>
-          <span
-            className="text-[10px] font-cond font-bold leading-none"
-            style={{ color: nextMeta.color }}
-          >
-            ({nextMeta.topPct})
-          </span>
-        </div>
-
-        <p className="text-sm text-ink-1 leading-relaxed">
-          회원님은 현재{" "}
-          <span className="text-ink-0 font-bold">[{grade}]</span> 등급입니다. {nextGrade} 수준의 사람들은 보통
-          골격근량이{" "}
-          <span style={{ color: "#D3FF52" }} className="font-bold">+{smmDelta}kg</span> 많고,
-          체지방률은{" "}
-          <span style={{ color: "#ff8c00" }} className="font-bold">-{bfDelta}%</span> 낮습니다.
-        </p>
-
-        {/* 중첩 막대그래프 */}
-        <ResponsiveContainer width="100%" height={120}>
-          <BarChart data={chartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
-            <XAxis dataKey="label" tick={{ fill: "#888", fontSize: 10, fontFamily: "Barlow Condensed" }} axisLine={false} />
-            <YAxis tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }} axisLine={false} />
-            <Tooltip contentStyle={{ backgroundColor: "rgba(8,8,8,0.95)", border: "1px solid #333", borderRadius: 8, fontFamily: "Barlow Condensed", fontSize: 11 }} />
-            <Bar dataKey="목표" fill={`${nextMeta.color}40`} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="현재" fill={nextMeta.color} radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-
-        {/* 정밀 수치 제언 */}
-        <div className="grid grid-cols-2 gap-2">
-          {smmDelta > 0 && (
-            <div
-              className="rounded-xl p-3 flex flex-col gap-1.5"
-              style={{ background: "rgba(211,255,82,0.08)", border: "1px solid rgba(211,255,82,0.2)" }}
-            >
-              <p className="text-[9px] font-cond text-volt uppercase tracking-wider leading-none">근육 목표</p>
-              <p className="font-display leading-none" style={{ color: "#D3FF52", fontSize: 18 }}>
-                +{smmDelta}kg
-              </p>
-              <p className="text-[9px] font-cond text-ink-3 leading-relaxed">점진적 과부하 주 3회</p>
-            </div>
-          )}
-          {bfDelta > 0 && (
-            <div
-              className="rounded-xl p-3 flex flex-col gap-1.5"
-              style={{ background: "rgba(255,140,0,0.08)", border: "1px solid rgba(255,140,0,0.2)" }}
-            >
-              <p className="text-[9px] font-cond text-warn uppercase tracking-wider leading-none">체지방 목표</p>
-              <p className="font-display leading-none" style={{ color: "#ff8c00", fontSize: 18 }}>
-                -{bfDelta}%
-              </p>
-              <p className="text-[9px] font-cond text-ink-3 leading-relaxed">칼로리 -{calDeficit}kcal/일</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
