@@ -165,6 +165,7 @@ export default function MemberDashboard() {
           {activeTab === "mission" && (
             <MissionTab
               homework={homework}
+              sessions={sessions}
               trainerNote={trainerNote}
               onUpdate={refresh}
             />

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, MessageSquare, MessageSquareQuote, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { Homework } from "@/lib/types";
+import type { Homework, Session } from "@/lib/types";
 import { getWeekStartISO } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { TabHeader } from "@/components/member/TabHeader";
@@ -11,6 +11,8 @@ import { TabHeader } from "@/components/member/TabHeader";
 interface Props {
   /** 회원의 전체 숙제 기록 (이번 주 + 과거 주차 전부 포함) */
   homework: Homework[];
+  /** 주차별 "당시 트레이너 피드백"을 실제 PT 세션 기록에서 찾기 위해 필요 */
+  sessions: Session[];
   trainerNote?: string | null;
   onUpdate: () => void;
 }
@@ -23,6 +25,9 @@ interface WeekGroup {
   pct: number;
   rangeLabel: string;
   weekLabel: string;
+  monthLabel: string;
+  /** 그 주간 실제 PT 세션에 남겨진 트레이너 메모 (없으면 null — 지어내지 않음) */
+  feedback: string | null;
 }
 
 /** "[카테고리] 내용" 형식이면 분리, 아니면 전체를 본문으로 취급 */
@@ -37,16 +42,18 @@ function formatWeekRange(weekStartISO: string) {
   const sunday = new Date(monday);
   sunday.setDate(sunday.getDate() + 6);
   const pad = (n: number) => String(n).padStart(2, "0");
-  const rangeLabel = `${monday.getFullYear()}.${pad(monday.getMonth() + 1)}.${pad(monday.getDate())} ~ ${pad(
+  const rangeLabel = `${pad(monday.getMonth() + 1)}.${pad(monday.getDate())} ~ ${pad(
     sunday.getMonth() + 1
   )}.${pad(sunday.getDate())}`;
-  const weekLabel = `${sunday.getMonth() + 1}월 ${Math.ceil(sunday.getDate() / 7)}주차`;
-  return { rangeLabel, weekLabel };
+  const monthLabel = `${sunday.getMonth() + 1}월`;
+  const weekLabel = `${monthLabel} ${Math.ceil(sunday.getDate() / 7)}주차`;
+  return { rangeLabel, weekLabel, monthLabel };
 }
 
-export function MissionTab({ homework, trainerNote, onUpdate }: Props) {
+export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props) {
   const [items, setItems] = useState(homework);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const weekStart = getWeekStartISO();
 
   useEffect(() => setItems(homework), [homework]);
@@ -73,7 +80,16 @@ export function MissionTab({ homework, trainerNote, onUpdate }: Props) {
       .map(([ws, list]) => {
         const completed = list.filter((h) => h.is_completed).length;
         const total = list.length;
-        const { rangeLabel, weekLabel } = formatWeekRange(ws);
+        const { rangeLabel, weekLabel, monthLabel } = formatWeekRange(ws);
+
+        // 그 주(월~일) 사이에 실제로 진행된 PT 세션 중 트레이너 메모가 있는 걸 찾음 (없으면 null)
+        const weekEnd = new Date(`${ws}T00:00:00`);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const weekEndStr = weekEnd.toISOString().slice(0, 10);
+        const noteSession = sessions
+          .filter((s) => s.date >= ws && s.date <= weekEndStr && s.trainer_note && s.trainer_note.trim())
+          .sort((a, b) => b.date.localeCompare(a.date))[0];
+
         return {
           weekStart: ws,
           items: list,
@@ -82,9 +98,32 @@ export function MissionTab({ homework, trainerNote, onUpdate }: Props) {
           pct: total > 0 ? Math.round((completed / total) * 100) : 0,
           rangeLabel,
           weekLabel,
+          monthLabel,
+          feedback: noteSession?.trainer_note ?? null,
         };
       });
-  }, [items, weekStart]);
+  }, [items, sessions, weekStart]);
+
+  /* 과거 주차가 걸쳐 있는 월 목록 (최신순) — PAST MISSIONS 월별 필터 탭 */
+  const availableMonths = useMemo(() => {
+    const seen = new Set<string>();
+    const months: string[] = [];
+    pastWeeks.forEach((w) => {
+      if (!seen.has(w.monthLabel)) {
+        seen.add(w.monthLabel);
+        months.push(w.monthLabel);
+      }
+    });
+    return months;
+  }, [pastWeeks]);
+
+  const effectiveMonth =
+    selectedMonth && availableMonths.includes(selectedMonth) ? selectedMonth : availableMonths[0] ?? null;
+
+  const filteredPastWeeks = useMemo(
+    () => pastWeeks.filter((w) => w.monthLabel === effectiveMonth),
+    [pastWeeks, effectiveMonth]
+  );
 
   /* 연속 80% 이상 달성 스트릭 — 가장 최근 과거 주차부터 역순으로, 끊김 없이 이어진 주만 카운트 */
   const streak = useMemo(() => {
@@ -307,13 +346,43 @@ export function MissionTab({ homework, trainerNote, onUpdate }: Props) {
       {/* ─── 이전 숙제 내역 ─── */}
       {pastWeeks.length > 0 && (
         <section className="flex flex-col gap-5">
-          <h2 className="section-title">
-            <span className="section-bar"></span>
-            이전 숙제 내역
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="section-title">
+              <span className="section-bar"></span>
+              이전 숙제 내역
+            </h2>
+            {availableMonths.length > 1 && (
+              <div
+                className="flex items-center gap-1 p-1 rounded-full shrink-0"
+                style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}
+              >
+                {availableMonths.map((m) => {
+                  const active = effectiveMonth === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMonth(m);
+                        setExpandedWeek(null);
+                      }}
+                      className="tap-haptic px-3 py-1 rounded-full text-xs font-cond font-bold transition-all"
+                      style={
+                        active
+                          ? { background: "var(--volt)", color: "#000" }
+                          : { color: "var(--ink-3)" }
+                      }
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col gap-3">
-            {pastWeeks.map((w) => {
+            {filteredPastWeeks.map((w) => {
               const isExpanded = expandedWeek === w.weekStart;
               return (
                 <div
@@ -363,41 +432,65 @@ export function MissionTab({ homework, trainerNote, onUpdate }: Props) {
 
                   {isExpanded && (
                     <div
-                      className="flex flex-col gap-2 pt-2"
+                      className="flex flex-col gap-3 pt-3"
                       style={{ borderTop: "1px solid var(--pt-5)" }}
                     >
-                      {w.items.map((hw) => {
-                        const { category, text } = parseCategory(hw.content);
-                        return (
-                          <div key={hw.id} className="flex items-center gap-3 text-sm">
+                      <div className="flex flex-col gap-2">
+                        {w.items.map((hw) => {
+                          const { category, text } = parseCategory(hw.content);
+                          return (
                             <div
-                              className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2"
-                              style={{
-                                borderColor: hw.is_completed ? "var(--volt)" : "var(--pt-6)",
-                                background: hw.is_completed ? "var(--grad-volt)" : "transparent",
-                              }}
+                              key={hw.id}
+                              className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-xs"
+                              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
                             >
-                              {hw.is_completed && (
-                                <Check size={11} strokeWidth={3} color="#000" />
-                              )}
-                            </div>
-                            <span className="flex-1 min-w-0 leading-relaxed">
-                              {category && (
-                                <span className="text-ink-4 font-cond text-xs mr-1">
-                                  [{category}]
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div
+                                  className="w-4 h-4 rounded-md flex items-center justify-center shrink-0"
+                                  style={{
+                                    background: hw.is_completed ? "var(--volt)" : "transparent",
+                                    border: hw.is_completed ? "none" : "1px solid var(--pt-6)",
+                                  }}
+                                >
+                                  {hw.is_completed && <Check size={11} strokeWidth={3} color="#000" />}
+                                </div>
+                                <span className="min-w-0 leading-relaxed">
+                                  {category && (
+                                    <span className="text-ink-4 font-cond mr-1">[{category}]</span>
+                                  )}
+                                  <span
+                                    className={cn(
+                                      "font-medium",
+                                      hw.is_completed ? "text-ink-2" : "text-ink-4 line-through"
+                                    )}
+                                  >
+                                    {text}
+                                  </span>
                                 </span>
-                              )}
+                              </div>
                               <span
-                                className={cn(
-                                  hw.is_completed ? "text-ink-3 line-through" : "text-ink-1"
-                                )}
+                                className="font-cond font-bold shrink-0"
+                                style={{ color: hw.is_completed ? "var(--volt)" : "var(--ink-4)" }}
                               >
-                                {text}
+                                {hw.is_completed ? "완료" : "미완료"}
                               </span>
-                            </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {w.feedback && (
+                        <div
+                          className="rounded-xl p-3.5"
+                          style={{ background: "rgba(211,255,82,0.04)", border: "1px solid var(--volt-glow-2)" }}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1" style={{ color: "var(--volt)" }}>
+                            <MessageSquareQuote size={13} />
+                            <span className="text-[11px] font-cond font-bold">당시 트레이너 피드백</span>
                           </div>
-                        );
-                      })}
+                          <p className="text-xs text-ink-2 leading-relaxed">&ldquo;{w.feedback}&rdquo;</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
