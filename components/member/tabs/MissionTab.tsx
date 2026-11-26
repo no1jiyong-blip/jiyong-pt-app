@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, MessageSquare, MessageSquareQuote, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, MessageSquareQuote, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { Homework, Session, Member } from "@/lib/types";
+import type { Homework, Session } from "@/lib/types";
 import { getWeekStartISO, formatWeekRange, parseHomeworkCategory } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { TabHeader } from "@/components/member/TabHeader";
 
 interface Props {
-  member: Member;
   /** 회원의 전체 숙제 기록 (이번 주 + 과거 주차 전부 포함) */
   homework: Homework[];
   /** 주차별 "당시 트레이너 피드백"을 실제 PT 세션 기록에서 찾기 위해 필요 */
   sessions: Session[];
-  trainerNote?: string | null;
   onUpdate: () => void;
 }
 
@@ -33,7 +31,7 @@ interface WeekGroup {
 
 const parseCategory = parseHomeworkCategory;
 
-export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props) {
+export function MissionTab({ homework, sessions, onUpdate }: Props) {
   const [items, setItems] = useState(homework);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -394,26 +392,6 @@ export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props)
             })}
           </div>
         </section>
-      )}
-
-      {/* ─── 트레이너 메모 (맨 하단) ─── */}
-      {trainerNote && (
-        <div
-          className="rounded-2xl p-5 border-2 flex flex-col gap-3"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(211,255,82,0.10) 0%, rgba(211,255,82,0.02) 100%)",
-            borderColor: "var(--volt-glow-2)",
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <MessageSquare size={14} className="text-volt" />
-            <p className="text-xs font-cond font-bold text-volt tracking-wider leading-none">
-              트레이너 메모
-            </p>
-          </div>
-          <p className="text-ink-1 text-sm leading-relaxed">{trainerNote}</p>
-        </div>
       )}
     </div>
   );

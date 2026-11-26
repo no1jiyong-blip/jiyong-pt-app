@@ -144,10 +144,6 @@ export default function MemberDashboard() {
     );
   }
 
-  const trainerNote =
-    sessions.find((s) => s.trainer_note && s.trainer_note.trim())
-      ?.trainer_note ?? null;
-
   return (
     <main className="min-h-screen bg-pt-0">
       <div className="pt-container with-bottom-nav">
@@ -187,10 +183,8 @@ export default function MemberDashboard() {
 
           {activeTab === "mission" && (
             <MissionTab
-              member={member}
               homework={homework}
               sessions={sessions}
-              trainerNote={trainerNote}
               onUpdate={refresh}
             />
           )}
