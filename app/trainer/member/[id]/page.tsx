@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Plus, Trash2, Save, CheckCircle2, Check,
+  ArrowLeft, Plus, Trash2, Save, CheckCircle2, Check, Circle,
   User, Dumbbell, Target, Activity, ChevronDown, ChevronUp,
-  ChevronLeft, ChevronRight,
   Loader2, AlertTriangle, Zap, KeyRound
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -17,7 +16,7 @@ import type {
 import { getAgeGroup, getAge } from "@/lib/types";
 import {
   formatShortKoreanDate, getTodayISO, getWeekStartISO,
-  shiftWeekStartISO, formatWeekRange, parseHomeworkCategory, HOMEWORK_CATEGORIES,
+  formatWeekRange, parseHomeworkCategory, HOMEWORK_CATEGORIES,
 } from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -513,16 +512,33 @@ function WorkoutTab({
   const [savingSession, setSavingSession] = useState(false);
   const [completingId, setCompletingId] = useState<string | null>(null);
 
+  const [hwItems, setHwItems] = useState(homework);
+  useEffect(() => setHwItems(homework), [homework]);
+
   const [newHomework, setNewHomework] = useState("");
-  const [newHwCategory, setNewHwCategory] = useState<string>("");
+  const [newHwTag, setNewHwTag] = useState<string>(HOMEWORK_CATEGORIES[0]);
   const [savingHw, setSavingHw] = useState(false);
-  const [hwWeekOffset, setHwWeekOffset] = useState(0);
+  const [openPastWeek, setOpenPastWeek] = useState<string | null>(null);
 
   const thisWeekStart = getWeekStartISO();
-  const targetWeek = shiftWeekStartISO(thisWeekStart, hwWeekOffset);
-  const weekItems = homework.filter((h) => h.week_start === targetWeek);
+  const weekItems = hwItems.filter((h) => h.week_start === thisWeekStart);
   const weekCompleted = weekItems.filter((h) => h.is_completed).length;
-  const { rangeLabel: weekRangeLabel, weekLabel } = formatWeekRange(targetWeek);
+
+  /* 이번 주를 제외한 과거 주차별 그룹 (최신순, 조회 전용) */
+  const pastHwWeeks = (() => {
+    const map = new Map<string, Homework[]>();
+    hwItems.forEach((h) => {
+      if (h.week_start === thisWeekStart) return;
+      if (!map.has(h.week_start)) map.set(h.week_start, []);
+      map.get(h.week_start)!.push(h);
+    });
+    return [...map.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([ws, list]) => {
+        const { rangeLabel, weekLabel } = formatWeekRange(ws);
+        return { weekStart: ws, items: list, rangeLabel, weekLabel };
+      });
+  })();
 
   /* 출석 완료 + 세션 차감 동시 처리 */
   const completeSession = async (session: Session) => {
@@ -583,11 +599,9 @@ function WorkoutTab({
   const addHomework = async () => {
     if (!newHomework.trim()) return;
     setSavingHw(true);
-    const content = newHwCategory
-      ? `[${newHwCategory}] ${newHomework.trim()}`
-      : newHomework.trim();
+    const content = `[${newHwTag}] ${newHomework.trim()}`;
     await supabase.from("homework").insert({
-      member_id: memberId, week_start: targetWeek,
+      member_id: memberId, week_start: thisWeekStart,
       content, is_completed: false,
     });
     setSavingHw(false);
@@ -596,13 +610,35 @@ function WorkoutTab({
   };
 
   const removeHomework = async (hwId: string) => {
+    setHwItems((prev) => prev.filter((h) => h.id !== hwId));
     await supabase.from("homework").delete().eq("id", hwId);
     onUpdate();
   };
 
   /* 회원이 깜빡했을 때 트레이너가 대신 체크/해제 */
   const toggleHomework = async (hw: Homework) => {
+    setHwItems((prev) =>
+      prev.map((h) => (h.id === hw.id ? { ...h, is_completed: !h.is_completed } : h))
+    );
     await supabase.from("homework").update({ is_completed: !hw.is_completed }).eq("id", hw.id);
+    onUpdate();
+  };
+
+  /* 항목 문구 바로 수정 — 카테고리 태그는 그대로 두고 본문만 교체 */
+  const editHomeworkText = (hwId: string, newText: string) => {
+    setHwItems((prev) =>
+      prev.map((h) => {
+        if (h.id !== hwId) return h;
+        const { category } = parseHomeworkCategory(h.content);
+        return { ...h, content: category ? `[${category}] ${newText}` : newText };
+      })
+    );
+  };
+
+  const commitHomeworkText = async (hwId: string) => {
+    const hw = hwItems.find((h) => h.id === hwId);
+    if (!hw) return;
+    await supabase.from("homework").update({ content: hw.content }).eq("id", hwId);
     onUpdate();
   };
 
@@ -705,53 +741,36 @@ function WorkoutTab({
         </div>
       </section>
 
-      {/* 숙제 관리 — 주차 이동 가능 */}
+      {/* 숙제 관리 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="pink" en="WEEKLY HOMEWORK" ko="주차별 숙제 관리" />
+        <SectionTitle bar="pink" en="WEEKLY HOMEWORK" ko="이주의 숙제 관리" />
 
-        {/* 주차 네비게이션 */}
-        <div className="flex items-center justify-between gap-2">
-          <button
-            onClick={() => setHwWeekOffset((v) => v - 1)}
-            className="tap-haptic w-9 h-9 rounded-full bg-pt-2 flex items-center justify-center text-ink-2 hover:bg-pt-4 shrink-0"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <div className="flex flex-col items-center gap-0.5 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-cond font-bold text-ink-0 text-sm leading-none">{weekRangeLabel}</p>
-              {hwWeekOffset === 0 && (
-                <span
-                  className="px-2 py-0.5 rounded-full text-[9px] font-cond font-bold leading-none"
-                  style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}
-                >
-                  이번 주
-                </span>
-              )}
-            </div>
-            <p className="text-[10px] font-cond text-ink-3 leading-none">
-              {weekLabel} · {weekCompleted}/{weekItems.length} 완료
+        {/* 상단 결론 요약 */}
+        <div className="pt-card flex items-center justify-between" style={{ padding: 20 }}>
+          <div>
+            <p className="text-[10px] font-cond text-ink-3 mb-1">이번 주 배정 숙제</p>
+            <p className="font-display text-ink-0 leading-none" style={{ fontSize: 18 }}>
+              총 <span className="text-volt tabular-nums">{weekItems.length}개</span> 숙제 운영 중
             </p>
           </div>
-          <button
-            onClick={() => setHwWeekOffset((v) => v + 1)}
-            className="tap-haptic w-9 h-9 rounded-full bg-pt-2 flex items-center justify-center text-ink-2 hover:bg-pt-4 shrink-0"
-          >
-            <ChevronRight size={16} />
-          </button>
+          <div className="text-right">
+            <p className="text-[10px] font-cond text-ink-3 mb-1">회원 수행 현황</p>
+            <p className="font-cond font-bold text-ink-0 text-sm tabular-nums">
+              {weekCompleted}/{weekItems.length} 완료
+            </p>
+          </div>
         </div>
 
-        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          {/* 카테고리 선택 */}
+        {/* 새 숙제 추가 폼 */}
+        <div className="pt-card flex flex-col gap-3" style={{ padding: 16 }}>
           <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-            {["없음", ...HOMEWORK_CATEGORIES].map((cat) => {
-              const value = cat === "없음" ? "" : cat;
-              const active = newHwCategory === value;
+            {HOMEWORK_CATEGORIES.map((tag) => {
+              const active = newHwTag === tag;
               return (
                 <button
-                  key={cat}
+                  key={tag}
                   type="button"
-                  onClick={() => setNewHwCategory(value)}
+                  onClick={() => setNewHwTag(tag)}
                   className="tap-haptic px-3 py-1.5 rounded-xl text-xs font-cond font-bold shrink-0 transition-colors"
                   style={
                     active
@@ -759,7 +778,7 @@ function WorkoutTab({
                       : { background: "var(--pt-3)", border: "1px solid var(--pt-5)", color: "var(--ink-2)" }
                   }
                 >
-                  {cat}
+                  {tag}
                 </button>
               );
             })}
@@ -771,7 +790,7 @@ function WorkoutTab({
               value={newHomework}
               onChange={(e) => setNewHomework(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addHomework()}
-              placeholder="숙제 내용 입력 (Enter로 추가)"
+              placeholder="이번 주 숙제 내용을 한 줄로 입력하세요"
               className="pt-input flex-1"
             />
             <button
@@ -781,50 +800,149 @@ function WorkoutTab({
               style={{ minHeight: 48, padding: "0 16px" }}
             >
               <Plus size={16} strokeWidth={3} />
+              추가
             </button>
           </div>
+        </div>
 
-          {weekItems.length === 0 ? (
-            <p className="text-ink-3 text-sm font-cond text-center py-2">
-              {hwWeekOffset === 0 ? "이번 주" : weekLabel} 숙제가 없습니다
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {weekItems.map((h) => {
-                const { category, text } = parseHomeworkCategory(h.content);
-                return (
-                  <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-pt-2">
-                    <button
-                      onClick={() => toggleHomework(h)}
-                      title={h.is_completed ? "완료 취소" : "완료로 표시 (회원이 깜빡했을 때 대신 체크)"}
-                      className={`tap-haptic w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
-                        h.is_completed ? "border-volt bg-volt" : "border-pt-6 bg-transparent"
-                      }`}
-                    >
-                      {h.is_completed && <Check size={11} strokeWidth={3} color="#000" />}
-                    </button>
-                    <span className="flex-1 min-w-0 flex flex-col gap-1">
-                      {category && (
-                        <span
-                          className="text-[9px] font-cond font-bold uppercase tracking-wider leading-none w-fit px-1.5 py-0.5 rounded"
-                          style={{ background: "var(--pt-3)", color: "var(--ink-3)" }}
-                        >
-                          {category}
-                        </span>
-                      )}
-                      <span className={`text-sm font-cond leading-relaxed ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
-                        {text}
+        {/* 배정된 이주의 숙제 — 문구 바로 수정 가능 */}
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-cond text-ink-3">항목 문구 바로 수정 가능</span>
+        </div>
+
+        {weekItems.length === 0 ? (
+          <p className="text-ink-3 text-sm font-cond text-center py-4">
+            이번 주 숙제가 없습니다
+          </p>
+        ) : (
+          <div className="pt-card flex flex-col" style={{ padding: 0 }}>
+            {weekItems.map((h, idx) => {
+              const { category, text } = parseHomeworkCategory(h.content);
+              return (
+                <div
+                  key={h.id}
+                  className="flex items-center gap-3 p-4"
+                  style={
+                    idx < weekItems.length - 1
+                      ? { borderBottom: "1px solid rgba(255,255,255,0.06)" }
+                      : undefined
+                  }
+                >
+                  <button
+                    onClick={() => toggleHomework(h)}
+                    title={h.is_completed ? "완료 취소" : "완료로 표시 (회원이 깜빡했을 때 대신 체크)"}
+                    className="tap-haptic shrink-0"
+                  >
+                    {h.is_completed ? (
+                      <CheckCircle2 size={16} className="text-volt" />
+                    ) : (
+                      <Circle size={16} className="text-ink-4" />
+                    )}
+                  </button>
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    {category && (
+                      <span
+                        className="inline-block w-fit text-[9px] font-cond font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-none"
+                        style={{ background: "rgba(255,255,255,0.06)", color: "var(--ink-3)" }}
+                      >
+                        {category}
                       </span>
-                    </span>
-                    <button onClick={() => removeHomework(h.id)} className="tap-haptic w-7 h-7 flex items-center justify-center text-ink-3 hover:text-danger shrink-0">
-                      <Trash2 size={13} />
+                    )}
+                    <input
+                      type="text"
+                      value={text}
+                      onChange={(e) => editHomeworkText(h.id, e.target.value)}
+                      onBlur={() => commitHomeworkText(h.id)}
+                      className={`w-full bg-transparent text-sm font-cond font-semibold outline-none focus:bg-pt-2 focus:px-2 focus:py-1 rounded-lg transition-all ${
+                        h.is_completed ? "text-ink-3 line-through" : "text-ink-0"
+                      }`}
+                    />
+                  </div>
+                  <button
+                    onClick={() => removeHomework(h.id)}
+                    aria-label="숙제 삭제"
+                    className="tap-haptic w-8 h-8 flex items-center justify-center text-ink-3 hover:text-danger shrink-0"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 지난 주차 수행 기록 (조회 전용) */}
+        {pastHwWeeks.length > 0 && (
+          <div className="flex flex-col gap-3 mt-2">
+            <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider">지난 주차 수행 기록</p>
+            <div className="pt-card flex flex-col" style={{ padding: 0 }}>
+              {pastHwWeeks.map((week, idx) => {
+                const done = week.items.filter((h) => h.is_completed).length;
+                const total = week.items.length;
+                const is100 = total > 0 && done === total;
+                const isOpen = openPastWeek === week.weekStart;
+                return (
+                  <div
+                    key={week.weekStart}
+                    style={
+                      idx < pastHwWeeks.length - 1
+                        ? { borderBottom: "1px solid rgba(255,255,255,0.06)" }
+                        : undefined
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenPastWeek(isOpen ? null : week.weekStart)}
+                      className="tap-haptic w-full px-4 py-3.5 flex items-center justify-between text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-cond font-bold text-ink-0">{week.weekLabel}</p>
+                        <p className="text-[10px] font-cond text-ink-3 tabular-nums">{week.rangeLabel}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className="text-sm font-cond font-bold tabular-nums"
+                          style={{ color: is100 ? "var(--volt)" : "var(--ink-2)" }}
+                        >
+                          {done}/{total} 완료
+                        </span>
+                        {isOpen ? (
+                          <ChevronUp size={16} className="text-ink-3" />
+                        ) : (
+                          <ChevronDown size={16} className="text-ink-3" />
+                        )}
+                      </div>
                     </button>
+                    {isOpen && (
+                      <div
+                        className="px-4 pb-3.5 pt-1 flex flex-col gap-1.5"
+                        style={{ background: "rgba(0,0,0,0.3)" }}
+                      >
+                        {week.items.map((h) => {
+                          const { category, text } = parseHomeworkCategory(h.content);
+                          return (
+                            <div key={h.id} className="flex items-center justify-between gap-3 text-xs py-1.5">
+                              <span className={h.is_completed ? "text-ink-1" : "text-ink-4"}>
+                                {category && <span className="text-ink-4 mr-1">[{category}]</span>}
+                                {text}
+                              </span>
+                              <span
+                                className="font-cond font-bold shrink-0"
+                                style={{ color: h.is_completed ? "var(--volt)" : "var(--ink-4)" }}
+                              >
+                                {h.is_completed ? "완료" : "미완료"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </section>
 
       {/* 개인 운동 모니터링 피드 */}
