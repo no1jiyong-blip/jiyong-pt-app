@@ -108,23 +108,6 @@ export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props)
     [pastWeeks, effectiveMonth]
   );
 
-  /* 연속 80% 이상 달성 스트릭 — 가장 최근 과거 주차부터 역순으로, 끊김 없이 이어진 주만 카운트 */
-  const streak = useMemo(() => {
-    let count = 0;
-    for (let i = 0; i < pastWeeks.length; i++) {
-      const w = pastWeeks[i];
-      if (w.total === 0 || w.pct < 80) break;
-      if (i > 0) {
-        const prevMonday = new Date(`${pastWeeks[i - 1].weekStart}T00:00:00`);
-        const thisMonday = new Date(`${w.weekStart}T00:00:00`);
-        const diffDays = Math.round((prevMonday.getTime() - thisMonday.getTime()) / 86400000);
-        if (diffDays !== 7) break;
-      }
-      count++;
-    }
-    return count;
-  }, [pastWeeks]);
-
   const toggle = async (hw: Homework) => {
     const newVal = !hw.is_completed;
     setItems((prev) =>
@@ -192,91 +175,68 @@ export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props)
         )}
       </div>
 
-      {/* ─── 이주의 숙제 ─── */}
+      {/* ─── 이주의 숙제 (개별 행 배치, 감싸는 카드 없음) ─── */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <h2 className="section-title">
             <span className="section-bar"></span>
             이주의 숙제
           </h2>
-          {streak >= 1 && (
-            <span
-              className="px-3 py-1.5 rounded-full font-cond font-bold text-xs tracking-wider leading-none shrink-0"
-              style={{
-                background: "rgba(211,255,82,0.12)",
-                color: "var(--volt)",
-                border: "1px solid var(--volt-glow-2)",
-              }}
-            >
-              🔥 {streak}주 연속 80% 달성
-            </span>
-          )}
+          <span className="text-xs font-cond text-ink-3">터치해서 완료 체크</span>
         </div>
 
-        <div
-          className={cn(
-            "pt-card-xl flex flex-col gap-5",
-            allCompleted && "anim-shimmer-border"
-          )}
-          style={
-            allCompleted
-              ? { borderColor: "var(--volt)", background: "var(--grad-card-hot)" }
-              : undefined
-          }
-        >
-          {totalCount > 0 ? (
-            <div className="flex flex-col gap-3">
-              {currentItems.map((hw) => {
-                const { category, text } = parseCategory(hw.content);
-                return (
-                  <button
-                    key={hw.id}
-                    onClick={() => toggle(hw)}
-                    className="tap-haptic w-full text-left rounded-2xl p-4 flex items-start gap-3.5 transition-colors"
+        {totalCount > 0 ? (
+          <div className="flex flex-col gap-2.5">
+            {currentItems.map((hw) => {
+              const { category, text } = parseCategory(hw.content);
+              return (
+                <button
+                  key={hw.id}
+                  onClick={() => toggle(hw)}
+                  className="tap-haptic w-full text-left rounded-2xl p-4 flex items-start gap-3.5 transition-colors"
+                  style={
+                    hw.is_completed
+                      ? { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }
+                      : { background: "var(--pt-2)", border: "1px solid var(--pt-5)" }
+                  }
+                >
+                  <span
+                    className="mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
                     style={
                       hw.is_completed
-                        ? { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }
-                        : { background: "var(--pt-2)", border: "1px solid var(--pt-5)" }
+                        ? { background: "var(--volt)" }
+                        : { border: "1px solid var(--pt-6)", background: "transparent" }
                     }
                   >
-                    <span
-                      className="mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
-                      style={
-                        hw.is_completed
-                          ? { background: "var(--volt)" }
-                          : { border: "1px solid var(--pt-6)", background: "transparent" }
-                      }
-                    >
-                      {hw.is_completed && <Check size={13} strokeWidth={3} color="#000" />}
-                    </span>
-                    <span className="min-w-0 flex-1 flex flex-col gap-1">
-                      {category && (
-                        <span
-                          className="inline-block w-fit text-[11px] font-cond font-bold px-2 py-0.5 rounded leading-none"
-                          style={{ background: "rgba(255,255,255,0.06)", color: "var(--ink-3)" }}
-                        >
-                          {category}
-                        </span>
-                      )}
+                    {hw.is_completed && <Check size={13} strokeWidth={3} color="#000" />}
+                  </span>
+                  <span className="min-w-0 flex-1 flex flex-col gap-1">
+                    {category && (
                       <span
-                        className={cn(
-                          "text-sm font-cond font-semibold leading-snug",
-                          hw.is_completed ? "text-ink-3 line-through" : "text-ink-0"
-                        )}
+                        className="inline-block w-fit text-[11px] font-cond font-bold px-2 py-0.5 rounded leading-none"
+                        style={{ background: "rgba(255,255,255,0.06)", color: "var(--ink-3)" }}
                       >
-                        {text}
+                        {category}
                       </span>
+                    )}
+                    <span
+                      className={cn(
+                        "text-sm font-cond font-semibold leading-snug",
+                        hw.is_completed ? "text-ink-3 line-through" : "text-ink-0"
+                      )}
+                    >
+                      {text}
                     </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-ink-3 text-sm font-cond text-center py-4">
-              이번 주 등록된 숙제가 없습니다
-            </p>
-          )}
-        </div>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-ink-3 text-sm font-cond text-center py-4">
+            이번 주 등록된 숙제가 없습니다
+          </p>
+        )}
       </section>
 
       {/* ─── 이전 숙제 내역 ─── */}
