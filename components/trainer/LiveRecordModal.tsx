@@ -166,7 +166,11 @@ export function LiveRecordModal({ session, memberName, onClose, onSaved }: Props
             </Field>
 
             {/* 트레이너 메모 */}
-            <Field label="트레이너 계획 / 메모" color="var(--info)">
+            <Field
+              label="트레이너 계획 / 메모"
+              color="var(--info)"
+              hint="회원 MISSION 탭 '트레이너 메모'에 표시됩니다"
+            >
               <Textarea
                 placeholder="예: 스쿼트 3x8 @80kg, 데드리프트 3x5 @100kg"
                 value={trainerNote}
@@ -324,7 +328,11 @@ export function LiveRecordModal({ session, memberName, onClose, onSaved }: Props
             </div>
 
             {/* 피드백 */}
-            <Field label="피드백 (회원에게 표시됨)" color="var(--volt)">
+            <Field
+              label="세션 피드백"
+              color="var(--volt)"
+              hint="회원 WORKOUT 탭 운동 히스토리 카드에 표시됩니다"
+            >
               <Textarea
                 placeholder="이번 세션에 대한 피드백..."
                 value={feedback}
@@ -369,10 +377,22 @@ function FieldLabel({ label, color }: { label: string; color?: string }) {
   );
 }
 
-function Field({ label, color, children }: { label: string; color?: string; children: React.ReactNode }) {
+function Field({
+  label, color, hint, children,
+}: {
+  label: string;
+  color?: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-2.5">
-      <FieldLabel label={label} color={color} />
+      <div className="flex flex-col gap-1">
+        <FieldLabel label={label} color={color} />
+        {hint && (
+          <p className="text-[10px] font-cond text-ink-4 leading-none">{hint}</p>
+        )}
+      </div>
       {children}
     </div>
   );
