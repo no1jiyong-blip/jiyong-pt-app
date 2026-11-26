@@ -158,6 +158,47 @@ export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }
         weeklyMission={member.weekly_mission}
       />
 
+      {/* ─── 이번 주 미션 요약 (결론 우선) ─── */}
+      <div className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-cond text-ink-3">이번 주 미션</span>
+          <span className="text-xs font-cond font-bold text-ink-2 tabular-nums">
+            {completedCount}/{totalCount} 완료 · {pct}%
+          </span>
+        </div>
+        <h1 className="font-display text-ink-0 leading-snug" style={{ fontSize: 21 }}>
+          {totalCount === 0 ? (
+            "이번 주 등록된 숙제가 없습니다"
+          ) : allCompleted ? (
+            <>
+              이번 주 숙제를 <span className="text-volt">모두 끝냈어요</span>
+            </>
+          ) : (
+            <>
+              이번 주 숙제{" "}
+              <span className="text-volt tabular-nums">{totalCount - completedCount}개</span>만 더 하면
+              100%예요
+            </>
+          )}
+        </h1>
+        {totalCount > 0 && (
+          <div
+            className="w-full rounded-full overflow-hidden"
+            style={{ height: 8, background: "var(--pt-4)" }}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${pct}%`,
+                background: "var(--volt)",
+                boxShadow: "0 0 8px var(--volt-glow-2)",
+                transition: "width 0.5s ease",
+              }}
+            />
+          </div>
+        )}
+      </div>
+
       {/* ─── 이주의 숙제 ─── */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -191,119 +232,52 @@ export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }
           }
         >
           {totalCount > 0 ? (
-            <>
-              {/* 통합 달성률 게이지 */}
-              <div className="flex flex-col gap-2.5">
-                <div className="flex items-end justify-between gap-3">
-                  <p className="font-display text-volt text-3xl tracking-wider leading-none">
-                    {completedCount}
-                    <span className="text-ink-3 text-base ml-1">
-                      / {totalCount} 완료
-                    </span>
-                  </p>
-                  {allCompleted ? (
+            <div className="flex flex-col gap-3">
+              {currentItems.map((hw) => {
+                const { category, text } = parseCategory(hw.content);
+                return (
+                  <button
+                    key={hw.id}
+                    onClick={() => toggle(hw)}
+                    className="tap-haptic w-full text-left rounded-2xl p-4 flex items-start gap-3.5 transition-colors"
+                    style={
+                      hw.is_completed
+                        ? { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }
+                        : { background: "var(--pt-2)", border: "1px solid var(--pt-5)" }
+                    }
+                  >
                     <span
-                      className="px-3 py-1.5 rounded-full font-cond font-bold text-xs tracking-wider leading-none"
-                      style={{
-                        background: "var(--grad-volt)",
-                        color: "#000",
-                        boxShadow: "0 0 12px var(--volt-glow-2)",
-                      }}
-                    >
-                      🔥 모두 완료!
-                    </span>
-                  ) : (
-                    <span
-                      className="font-mono-num font-extrabold text-lg leading-none"
-                      style={{ color: "var(--volt)" }}
-                    >
-                      {pct}%
-                    </span>
-                  )}
-                </div>
-                <div
-                  className="w-full rounded-full overflow-hidden"
-                  style={{ height: 8, background: "var(--pt-4)" }}
-                >
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${pct}%`,
-                      background: "var(--volt)",
-                      boxShadow: "0 0 8px var(--volt-glow-2)",
-                      transition: "width 0.5s ease",
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {currentItems.map((hw) => {
-                  const { category, text } = parseCategory(hw.content);
-                  return (
-                    <button
-                      key={hw.id}
-                      onClick={() => toggle(hw)}
-                      className={cn(
-                        "tap-haptic w-full flex items-center gap-4 p-5 rounded-2xl border transition-all text-left",
-                        hw.is_completed
-                          ? "anim-shimmer-border"
-                          : "bg-pt-2 border-pt-5 hover:border-pt-6"
-                      )}
+                      className="mt-0.5 w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
                       style={
                         hw.is_completed
-                          ? {
-                              background: "var(--grad-card-hot)",
-                              borderColor: "var(--volt-glow-2)",
-                            }
-                          : undefined
+                          ? { background: "var(--volt)" }
+                          : { border: "1px solid var(--pt-6)", background: "transparent" }
                       }
                     >
-                      <div
-                        className={cn(
-                          "w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 transition-all",
-                          hw.is_completed
-                            ? "border-volt"
-                            : "border-pt-6 bg-transparent"
-                        )}
-                        style={{
-                          background: hw.is_completed
-                            ? "var(--grad-volt)"
-                            : undefined,
-                        }}
-                      >
-                        {hw.is_completed && (
-                          <Check size={15} strokeWidth={3} color="#000" />
-                        )}
-                      </div>
-                      <span className="flex-1 flex flex-col gap-1 min-w-0">
-                        {category && (
-                          <span
-                            className="text-[10px] font-cond font-bold uppercase tracking-wider leading-none w-fit px-1.5 py-0.5 rounded"
-                            style={{
-                              background: hw.is_completed ? "rgba(211,255,82,0.15)" : "var(--pt-3)",
-                              color: hw.is_completed ? "var(--volt)" : "var(--ink-3)",
-                            }}
-                          >
-                            {category}
-                          </span>
-                        )}
+                      {hw.is_completed && <Check size={13} strokeWidth={3} color="#000" />}
+                    </span>
+                    <span className="min-w-0 flex-1 flex flex-col gap-1">
+                      {category && (
                         <span
-                          className={cn(
-                            "text-sm leading-relaxed",
-                            hw.is_completed
-                              ? "text-ink-3 line-through"
-                              : "text-ink-0"
-                          )}
+                          className="inline-block w-fit text-[11px] font-cond font-bold px-2 py-0.5 rounded leading-none"
+                          style={{ background: "rgba(255,255,255,0.06)", color: "var(--ink-3)" }}
                         >
-                          {text}
+                          {category}
                         </span>
+                      )}
+                      <span
+                        className={cn(
+                          "text-sm font-cond font-semibold leading-snug",
+                          hw.is_completed ? "text-ink-3 line-through" : "text-ink-0"
+                        )}
+                      >
+                        {text}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           ) : (
             <p className="text-ink-3 text-sm font-cond text-center py-4">
               이번 주 등록된 숙제가 없습니다
