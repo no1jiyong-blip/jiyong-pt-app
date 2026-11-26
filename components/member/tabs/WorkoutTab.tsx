@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   Plus, X, Copy, Trophy, Loader2, Clock, Dumbbell, Minus,
-  ChevronDown, Play, Pause, RotateCcw, Check,
+  ChevronDown, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -182,9 +182,6 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       )}
 
       <TabHeader title="WORKOUT LOG" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
-
-      {/* 플로팅 타이머 */}
-      <FloatingTimer />
 
       {/* ─── NEXT WORKOUT ─── */}
       <NextWorkoutSection
@@ -793,93 +790,6 @@ function HistoryCard({ item }: { item: HItem }) {
               <p className="text-xs text-ink-1 leading-relaxed">{item.feedback}</p>
             </div>
           )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════════
-   플로팅 타이머 (우측 상단 고정)
-   ════════════════════════════════════════════════════════════════ */
-const PRESETS = [60, 90, 120, 180];
-
-function FloatingTimer() {
-  const [target,    setTarget]    = useState(90);
-  const [remaining, setRemaining] = useState(90);
-  const [running,   setRunning]   = useState(false);
-  const [expanded,  setExpanded]  = useState(false);
-  const ref = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (!running) { if (ref.current) clearInterval(ref.current); return; }
-    ref.current = setInterval(() => {
-      setRemaining(r => {
-        if (r <= 1) { setRunning(false); navigator.vibrate?.([200, 100, 200]); return 0; }
-        return r - 1;
-      });
-    }, 1000);
-    return () => { if (ref.current) clearInterval(ref.current); };
-  }, [running]);
-
-  const mm = Math.floor(remaining / 60).toString().padStart(2, "0");
-  const ss = (remaining % 60).toString().padStart(2, "0");
-  const pct = target > 0 ? (remaining / target) * 100 : 0;
-  const isDone = remaining === 0;
-  const isLow  = remaining > 0 && remaining <= 10;
-  const tColor = isDone ? "var(--volt)" : isLow ? "#ff8c00" : "var(--ink-0)";
-
-  return (
-    <div className="fixed top-20 right-4 z-30">
-      <button onClick={() => setExpanded(v => !v)} className="tap-haptic relative"
-        style={{ width: 64, height: 64, background: "rgba(14,14,14,0.92)", backdropFilter: "blur(16px)",
-          border: `2px solid ${running ? "var(--volt)" : "var(--pt-5)"}`, borderRadius: "50%",
-          boxShadow: running ? "0 0 16px var(--volt-glow-2)" : "0 2px 12px rgba(0,0,0,0.5)",
-          display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 1 }}>
-        <svg style={{ position: "absolute", inset: -2, width: 68, height: 68, transform: "rotate(-90deg)" }} viewBox="0 0 68 68">
-          <circle cx="34" cy="34" r="30" fill="none" stroke="var(--pt-4)" strokeWidth="3" />
-          <circle cx="34" cy="34" r="30" fill="none" stroke={tColor} strokeWidth="3"
-            strokeDasharray={`${2 * Math.PI * 30}`}
-            strokeDashoffset={`${2 * Math.PI * 30 * (1 - pct / 100)}`}
-            strokeLinecap="round"
-            style={{ transition: "stroke-dashoffset 1s linear" }} />
-        </svg>
-        <span className="font-display tabular-nums leading-none" style={{ fontSize: 14, color: tColor, position: "relative", zIndex: 1 }}>{mm}:{ss}</span>
-        {running
-          ? <Pause size={10} style={{ color: tColor, position: "relative", zIndex: 1 }} />
-          : <Play  size={10} style={{ color: tColor, position: "relative", zIndex: 1 }} />}
-      </button>
-
-      {expanded && (
-        <div className="absolute top-16 right-0 w-52 flex flex-col gap-3 p-4 anim-fade-slide"
-          style={{ background: "rgba(12,12,12,0.96)", backdropFilter: "blur(20px)",
-            border: "1px solid var(--volt-glow-2)", borderRadius: 18, boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-cond text-volt tracking-wider uppercase leading-none">휴식 타이머</p>
-            <button onClick={() => setExpanded(false)} className="text-ink-3"><X size={12} /></button>
-          </div>
-          <div className="grid grid-cols-4 gap-1">
-            {PRESETS.map(sec => (
-              <button key={sec} onClick={() => { setTarget(sec); setRemaining(sec); setRunning(false); }}
-                className="tap-haptic py-2 rounded-lg font-cond font-bold text-[10px] leading-none transition-all"
-                style={target === sec
-                  ? { background: "var(--volt)", color: "#000" }
-                  : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
-                {sec < 60 ? `${sec}s` : `${sec / 60}m`}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => { if (isDone) { setRemaining(target); setRunning(true); } else setRunning(r => !r); }}
-              className="tap-haptic flex-1 rounded-xl flex items-center justify-center gap-1.5 font-cond font-bold text-xs"
-              style={{ minHeight: 36, background: running ? "var(--pt-4)" : "var(--grad-volt)", color: running ? "var(--ink-0)" : "#000", border: running ? "1px solid var(--pt-6)" : "none" }}>
-              {running ? <><Pause size={12} />일시정지</> : <><Play size={12} />{isDone ? "재시작" : "시작"}</>}
-            </button>
-            <button onClick={() => { setRunning(false); setRemaining(target); }}
-              className="tap-haptic w-9 h-9 rounded-xl bg-pt-3 border border-pt-5 flex items-center justify-center text-ink-2">
-              <RotateCcw size={12} />
-            </button>
-          </div>
         </div>
       )}
     </div>

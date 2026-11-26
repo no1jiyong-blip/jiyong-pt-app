@@ -7,7 +7,6 @@ import type { Homework, Session, Member } from "@/lib/types";
 import { getWeekStartISO, formatWeekRange, parseHomeworkCategory } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { TabHeader } from "@/components/member/TabHeader";
-import { TrainerAssessmentCard } from "@/components/shared/TrainerAssessmentCard";
 
 interface Props {
   member: Member;
@@ -34,7 +33,7 @@ interface WeekGroup {
 
 const parseCategory = parseHomeworkCategory;
 
-export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }: Props) {
+export function MissionTab({ homework, sessions, trainerNote, onUpdate }: Props) {
   const [items, setItems] = useState(homework);
   const [expandedWeek, setExpandedWeek] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -150,12 +149,6 @@ export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }
       <TabHeader
         title="WEEKLY MISSION"
         subtitle="꾸준한 작은 습관이 큰 변화를 만듭니다"
-      />
-
-      {/* ─── 트레이너 소견 + 핵심 미션 ─── */}
-      <TrainerAssessmentCard
-        trainerAssessment={member.trainer_assessment}
-        weeklyMission={member.weekly_mission}
       />
 
       {/* ─── 이번 주 미션 요약 (결론 우선) ─── */}
@@ -282,27 +275,6 @@ export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }
             <p className="text-ink-3 text-sm font-cond text-center py-4">
               이번 주 등록된 숙제가 없습니다
             </p>
-          )}
-
-          {trainerNote && (
-            <div
-              className="rounded-2xl p-5 border-2 flex flex-col gap-3 mt-2"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(211,255,82,0.10) 0%, rgba(211,255,82,0.02) 100%)",
-                borderColor: "var(--volt-glow-2)",
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <MessageSquare size={14} className="text-volt" />
-                <p className="text-xs font-cond font-bold text-volt tracking-wider leading-none">
-                  트레이너 메모
-                </p>
-              </div>
-              <p className="text-ink-1 text-sm leading-relaxed">
-                {trainerNote}
-              </p>
-            </div>
           )}
         </div>
       </section>
@@ -462,6 +434,26 @@ export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }
             })}
           </div>
         </section>
+      )}
+
+      {/* ─── 트레이너 메모 (맨 하단) ─── */}
+      {trainerNote && (
+        <div
+          className="rounded-2xl p-5 border-2 flex flex-col gap-3"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(211,255,82,0.10) 0%, rgba(211,255,82,0.02) 100%)",
+            borderColor: "var(--volt-glow-2)",
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <MessageSquare size={14} className="text-volt" />
+            <p className="text-xs font-cond font-bold text-volt tracking-wider leading-none">
+              트레이너 메모
+            </p>
+          </div>
+          <p className="text-ink-1 text-sm leading-relaxed">{trainerNote}</p>
+        </div>
       )}
     </div>
   );
