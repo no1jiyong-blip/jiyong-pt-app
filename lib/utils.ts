@@ -28,6 +28,36 @@ export function getWeekStartISO(): string {
   return new Date(d.setDate(diff)).toISOString().split("T")[0];
 }
 
+/** 주 시작일(월요일) ISO 날짜를 deltaWeeks 주만큼 앞/뒤로 이동 */
+export function shiftWeekStartISO(weekStartISO: string, deltaWeeks: number): string {
+  const d = new Date(`${weekStartISO}T00:00:00`);
+  d.setDate(d.getDate() + deltaWeeks * 7);
+  return d.toISOString().slice(0, 10);
+}
+
+/** 주 시작일(월요일) 기준으로 "MM.DD ~ MM.DD" 범위와 "M월 N주차" 라벨 생성 */
+export function formatWeekRange(weekStartISO: string) {
+  const monday = new Date(`${weekStartISO}T00:00:00`);
+  const sunday = new Date(monday);
+  sunday.setDate(sunday.getDate() + 6);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const rangeLabel = `${pad(monday.getMonth() + 1)}.${pad(monday.getDate())} ~ ${pad(
+    sunday.getMonth() + 1
+  )}.${pad(sunday.getDate())}`;
+  const monthLabel = `${sunday.getMonth() + 1}월`;
+  const weekLabel = `${monthLabel} ${Math.ceil(sunday.getDate() / 7)}주차`;
+  return { rangeLabel, weekLabel, monthLabel };
+}
+
+/** "[카테고리] 내용" 형식이면 분리, 아니면 전체를 본문으로 취급 */
+export function parseHomeworkCategory(content: string): { category: string | null; text: string } {
+  const m = content.match(/^\[(.+?)\]\s*(.*)$/);
+  return m ? { category: m[1], text: m[2] } : { category: null, text: content };
+}
+
+/** 트레이너가 숙제 등록 시 선택할 수 있는 카테고리 (회원 MISSION 탭 배지와 동일) */
+export const HOMEWORK_CATEGORIES = ["운동", "식단/영양", "근이완/스트레칭", "생활습관"] as const;
+
 export const MONTH_ABBR = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Trash2, Save, CheckCircle2,
   User, Dumbbell, Target, Activity, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight,
   Loader2, AlertTriangle, Zap, KeyRound
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -14,7 +15,10 @@ import type {
   BodyMeasurement, PersonalLog, BenchmarkData, SessionQuality,
 } from "@/lib/types";
 import { getAgeGroup, getAge } from "@/lib/types";
-import { formatShortKoreanDate, getTodayISO, getWeekStartISO } from "@/lib/utils";
+import {
+  formatShortKoreanDate, getTodayISO, getWeekStartISO,
+  shiftWeekStartISO, formatWeekRange, parseHomeworkCategory, HOMEWORK_CATEGORIES,
+} from "@/lib/utils";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { LiveRecordModal } from "@/components/trainer/LiveRecordModal";
@@ -58,7 +62,8 @@ export default function TrainerMemberDetailPage({
       await Promise.all([
         supabase.from("members").select("*").eq("id", id).maybeSingle(),
         supabase.from("sessions").select("*").eq("member_id", id).order("date", { ascending: false }),
-        supabase.from("homework").select("*").eq("member_id", id).eq("week_start", getWeekStartISO()).order("created_at", { ascending: true }),
+        supabase.from("homework").select("*").eq("member_id", id)
+          .order("week_start", { ascending: false }).order("created_at", { ascending: true }),
         supabase.from("body_measurements").select("*").eq("member_id", id).order("measured_at", { ascending: false }),
         supabase.from("personal_logs").select("*").eq("member_id", id).order("log_date", { ascending: false }),
       ]);
@@ -508,7 +513,15 @@ function WorkoutTab({
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   const [newHomework, setNewHomework] = useState("");
+  const [newHwCategory, setNewHwCategory] = useState<string>("");
   const [savingHw, setSavingHw] = useState(false);
+  const [hwWeekOffset, setHwWeekOffset] = useState(0);
+
+  const thisWeekStart = getWeekStartISO();
+  const targetWeek = shiftWeekStartISO(thisWeekStart, hwWeekOffset);
+  const weekItems = homework.filter((h) => h.week_start === targetWeek);
+  const weekCompleted = weekItems.filter((h) => h.is_completed).length;
+  const { rangeLabel: weekRangeLabel, weekLabel } = formatWeekRange(targetWeek);
 
   /* 출석 완료 + 세션 차감 동시 처리 */
   const completeSession = async (session: Session) => {
@@ -569,9 +582,12 @@ function WorkoutTab({
   const addHomework = async () => {
     if (!newHomework.trim()) return;
     setSavingHw(true);
+    const content = newHwCategory
+      ? `[${newHwCategory}] ${newHomework.trim()}`
+      : newHomework.trim();
     await supabase.from("homework").insert({
-      member_id: memberId, week_start: getWeekStartISO(),
-      content: newHomework.trim(), is_completed: false,
+      member_id: memberId, week_start: targetWeek,
+      content, is_completed: false,
     });
     setSavingHw(false);
     setNewHomework("");
@@ -682,10 +698,66 @@ function WorkoutTab({
         </div>
       </section>
 
-      {/* 이주의 숙제 관리 */}
+      {/* 숙제 관리 — 주차 이동 가능 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="pink" en="WEEKLY HOMEWORK" ko="이주의 숙제 관리" />
+        <SectionTitle bar="pink" en="WEEKLY HOMEWORK" ko="주차별 숙제 관리" />
+
+        {/* 주차 네비게이션 */}
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => setHwWeekOffset((v) => v - 1)}
+            className="tap-haptic w-9 h-9 rounded-full bg-pt-2 flex items-center justify-center text-ink-2 hover:bg-pt-4 shrink-0"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <div className="flex flex-col items-center gap-0.5 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-cond font-bold text-ink-0 text-sm leading-none">{weekRangeLabel}</p>
+              {hwWeekOffset === 0 && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[9px] font-cond font-bold leading-none"
+                  style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}
+                >
+                  이번 주
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] font-cond text-ink-3 leading-none">
+              {weekLabel} · {weekCompleted}/{weekItems.length} 완료
+            </p>
+          </div>
+          <button
+            onClick={() => setHwWeekOffset((v) => v + 1)}
+            className="tap-haptic w-9 h-9 rounded-full bg-pt-2 flex items-center justify-center text-ink-2 hover:bg-pt-4 shrink-0"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
         <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          {/* 카테고리 선택 */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+            {["없음", ...HOMEWORK_CATEGORIES].map((cat) => {
+              const value = cat === "없음" ? "" : cat;
+              const active = newHwCategory === value;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setNewHwCategory(value)}
+                  className="tap-haptic px-3 py-1.5 rounded-xl text-xs font-cond font-bold shrink-0 transition-colors"
+                  style={
+                    active
+                      ? { background: "var(--volt)", color: "#000" }
+                      : { background: "var(--pt-3)", border: "1px solid var(--pt-5)", color: "var(--ink-2)" }
+                  }
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex gap-2">
             <input
               type="text"
@@ -705,21 +777,36 @@ function WorkoutTab({
             </button>
           </div>
 
-          {homework.length === 0 ? (
-            <p className="text-ink-3 text-sm font-cond text-center py-2">이번 주 숙제가 없습니다</p>
+          {weekItems.length === 0 ? (
+            <p className="text-ink-3 text-sm font-cond text-center py-2">
+              {hwWeekOffset === 0 ? "이번 주" : weekLabel} 숙제가 없습니다
+            </p>
           ) : (
             <div className="flex flex-col gap-2">
-              {homework.map((h) => (
-                <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-pt-2">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
-                  <span className={`flex-1 text-sm font-cond leading-relaxed ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
-                    {h.content}
-                  </span>
-                  <button onClick={() => removeHomework(h.id)} className="tap-haptic w-7 h-7 flex items-center justify-center text-ink-3 hover:text-danger">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ))}
+              {weekItems.map((h) => {
+                const { category, text } = parseHomeworkCategory(h.content);
+                return (
+                  <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-pt-2">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
+                    <span className="flex-1 min-w-0 flex flex-col gap-1">
+                      {category && (
+                        <span
+                          className="text-[9px] font-cond font-bold uppercase tracking-wider leading-none w-fit px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--pt-3)", color: "var(--ink-3)" }}
+                        >
+                          {category}
+                        </span>
+                      )}
+                      <span className={`text-sm font-cond leading-relaxed ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
+                        {text}
+                      </span>
+                    </span>
+                    <button onClick={() => removeHomework(h.id)} className="tap-haptic w-7 h-7 flex items-center justify-center text-ink-3 hover:text-danger shrink-0">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -889,7 +976,8 @@ function MissionTab({
     onUpdate();
   };
 
-  const completedCount = homework.filter((h) => h.is_completed).length;
+  const thisWeekHomework = homework.filter((h) => h.week_start === getWeekStartISO());
+  const completedCount = thisWeekHomework.filter((h) => h.is_completed).length;
 
   return (
     <div className="px-5 flex flex-col gap-7">
@@ -949,29 +1037,33 @@ function MissionTab({
         {saving ? "저장 중..." : savedFlash ? "✓ 저장됨! 회원 앱에 즉시 반영" : "소견 & 미션 저장"}
       </button>
 
-      {/* 숙제 완료 현황 */}
-      {homework.length > 0 && (
+      {/* 숙제 완료 현황 (이번 주) */}
+      {thisWeekHomework.length > 0 && (
         <section className="flex flex-col gap-4">
-          <SectionTitle bar="pink" en="HOMEWORK STATUS" ko="숙제 완료 현황" />
+          <SectionTitle bar="pink" en="HOMEWORK STATUS" ko="이번 주 숙제 완료 현황" />
           <div className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
             <div className="flex items-center justify-between">
               <p className="font-display text-volt leading-none" style={{ fontSize: 28 }}>
                 {completedCount}
-                <span className="text-ink-3 text-base ml-1">/ {homework.length}</span>
+                <span className="text-ink-3 text-base ml-1">/ {thisWeekHomework.length}</span>
               </p>
               <span className="text-xs font-cond text-ink-2">
-                {Math.round((completedCount / homework.length) * 100)}% 완료
+                {Math.round((completedCount / thisWeekHomework.length) * 100)}% 완료
               </span>
             </div>
-            {homework.map((h) => (
-              <div key={h.id} className="flex items-center gap-3 py-2 border-b border-pt-5 last:border-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
-                <span className={`text-sm font-cond leading-relaxed flex-1 ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
-                  {h.content}
-                </span>
-                {h.is_completed && <CheckCircle2 size={13} className="text-volt shrink-0" />}
-              </div>
-            ))}
+            {thisWeekHomework.map((h) => {
+              const { category, text } = parseHomeworkCategory(h.content);
+              return (
+                <div key={h.id} className="flex items-center gap-3 py-2 border-b border-pt-5 last:border-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
+                  <span className={`text-sm font-cond leading-relaxed flex-1 ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
+                    {category && <span className="text-ink-4 mr-1">[{category}]</span>}
+                    {text}
+                  </span>
+                  {h.is_completed && <CheckCircle2 size={13} className="text-volt shrink-0" />}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

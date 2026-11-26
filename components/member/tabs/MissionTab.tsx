@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, MessageSquare, MessageSquareQuote, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { Homework, Session, Member } from "@/lib/types";
-import { getWeekStartISO } from "@/lib/utils";
+import { getWeekStartISO, formatWeekRange, parseHomeworkCategory } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { TabHeader } from "@/components/member/TabHeader";
 import { TrainerAssessmentCard } from "@/components/shared/TrainerAssessmentCard";
@@ -32,25 +32,7 @@ interface WeekGroup {
   feedback: string | null;
 }
 
-/** "[카테고리] 내용" 형식이면 분리, 아니면 전체를 본문으로 취급 */
-function parseCategory(content: string): { category: string | null; text: string } {
-  const m = content.match(/^\[(.+?)\]\s*(.*)$/);
-  return m ? { category: m[1], text: m[2] } : { category: null, text: content };
-}
-
-/** 주 시작일(월요일) 기준으로 "YYYY.MM.DD ~ MM.DD" 범위와 "M월 N주차" 라벨 생성 */
-function formatWeekRange(weekStartISO: string) {
-  const monday = new Date(`${weekStartISO}T00:00:00`);
-  const sunday = new Date(monday);
-  sunday.setDate(sunday.getDate() + 6);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const rangeLabel = `${pad(monday.getMonth() + 1)}.${pad(monday.getDate())} ~ ${pad(
-    sunday.getMonth() + 1
-  )}.${pad(sunday.getDate())}`;
-  const monthLabel = `${sunday.getMonth() + 1}월`;
-  const weekLabel = `${monthLabel} ${Math.ceil(sunday.getDate() / 7)}주차`;
-  return { rangeLabel, weekLabel, monthLabel };
-}
+const parseCategory = parseHomeworkCategory;
 
 export function MissionTab({ member, homework, sessions, trainerNote, onUpdate }: Props) {
   const [items, setItems] = useState(homework);
