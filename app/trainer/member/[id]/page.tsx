@@ -898,7 +898,7 @@ function MissionTab({
         <SectionTitle bar="volt" en="TRAINER ASSESSMENT" ko="재활 안정성 소견" />
         <div className="pt-card flex flex-col gap-4" style={{ padding: 22 }}>
           <p className="text-[10px] font-cond text-ink-3 leading-relaxed">
-            작성 내용은 회원 GROWTH 탭 하단에 말풍선 형태로 즉시 표시됩니다
+            작성 내용은 회원 MISSION 탭 상단에 말풍선 형태로 즉시 표시됩니다
           </p>
           <textarea
             value={assessment}

@@ -22,7 +22,6 @@ import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { OneRMReportCard } from "@/components/shared/OneRMReportCard";
 import { BodyMetrics } from "@/components/shared/BodyMetrics";
 import { AnalysisInsights } from "@/components/shared/AnalysisInsights";
-import { TrainerAssessmentCard } from "@/components/shared/TrainerAssessmentCard";
 
 interface Props {
   member: Member;
@@ -356,14 +355,6 @@ export function GrowthTab({
           />
         </div>
       )}
-
-      {/* ─── 트레이너 소견 + 핵심 미션 (하단 고정) ─── */}
-      <div className="px-5">
-        <TrainerAssessmentCard
-          trainerAssessment={member.trainer_assessment}
-          weeklyMission={member.weekly_mission}
-        />
-      </div>
 
       <div style={{ height: 12 }} />
     </div>
