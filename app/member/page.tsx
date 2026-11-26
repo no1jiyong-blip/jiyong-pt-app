@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
@@ -100,6 +100,29 @@ export default function MemberDashboard() {
   const refresh = useCallback(() => {
     if (member) loadData(member.id);
   }, [member, loadData]);
+
+  /* 트레이너가 다른 기기(예: 트레이너용 화면)에서 세션을 완료 처리하거나
+     세션 수를 조정해도, 이 화면이 열려 있는 동안 자동으로 최신 데이터를
+     다시 불러와 HOME/WORKOUT/GROWTH/MISSION 전체에 반영한다. */
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshRef.current();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    const interval = setInterval(() => refreshRef.current(), 30000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      clearInterval(interval);
+    };
+  }, []);
 
   if (loading) {
     return (
