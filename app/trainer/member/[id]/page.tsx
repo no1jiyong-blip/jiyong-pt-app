@@ -27,6 +27,7 @@ import { HeroSBDChart } from "@/components/shared/HeroSBDChart";
 import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
 import { OneRMReportCard } from "@/components/shared/OneRMReportCard";
+import { AnalysisInsights } from "@/components/shared/AnalysisInsights";
 
 type AdminTab = "home" | "workout" | "mission" | "body";
 
@@ -855,17 +856,33 @@ function WorkoutTab({
                   key={`personal-${item.date}-${i}`}
                   type="personal"
                   date={item.date}
-                  title="개인 운동"
+                  title={item.logs[0]?.workout_memo || "개인 운동"}
                   subtitle={`${item.logs.length}종목`}
                   records={item.logs.map((l) => ({
                     label: l.exercise_name,
-                    detail: `${l.sets ?? 0}세트 × ${l.reps ?? 0}회${l.memo ? ` · ${l.memo}` : ""}`,
+                    detail: `${l.sets ?? 0}세트 × ${l.reps ?? 0}회`,
                   }))}
+                  rpe={(() => {
+                    const m = item.logs[0]?.memo?.match(/RPE (\d+)/);
+                    return m ? parseInt(m[1]) : null;
+                  })()}
+                  condScore={item.logs[0]?.condition_score ?? null}
                 />
               )
             )}
           </div>
         )}
+      </section>
+
+      {/* 출석 캘린더 + 활동 리포트 + 성장 캐릭터 진단 (회원 GROWTH·ANALYSIS 탭과 동일 데이터) */}
+      <section className="flex flex-col gap-6">
+        <SectionTitle bar="blue" en="ATTENDANCE & ANALYSIS" ko="출석 및 활동 분석 (회원 ANALYSIS 탭과 동일)" />
+        <AnalysisInsights
+          member={member}
+          sessions={sessions}
+          recordsBySession={recordsBySession}
+          personalLogs={personalLogs}
+        />
       </section>
 
       {/* 근력 성장 전체 대시보드 */}
@@ -1298,7 +1315,7 @@ function SectionTitle({ bar, en, ko }: { bar: "volt" | "blue" | "pink"; en: stri
 }
 
 function FeedCard({
-  type, date, title, subtitle, records, extra,
+  type, date, title, subtitle, records, extra, rpe, condScore,
 }: {
   type: "pt" | "personal";
   date: string;
@@ -1306,6 +1323,8 @@ function FeedCard({
   subtitle: string;
   records: { label: string; detail: string }[];
   extra?: string | null;
+  rpe?: number | null;
+  condScore?: number | null;
 }) {
   const [open, setOpen] = useState(false);
   const isPT = type === "pt";
@@ -1348,6 +1367,20 @@ function FeedCard({
               <span className="text-ink-2 text-xs font-cond shrink-0">{r.detail}</span>
             </div>
           ))}
+          {(rpe || condScore) && (
+            <div className="flex gap-4 px-1 pt-1">
+              {rpe && (
+                <span className="text-[10px] font-cond text-ink-3">
+                  RPE <b className="text-volt">{rpe}</b>
+                </span>
+              )}
+              {condScore && (
+                <span className="text-[10px] font-cond text-ink-3">
+                  컨디션 <b style={{ color: "#5BA8FF" }}>{condScore}</b>
+                </span>
+              )}
+            </div>
+          )}
           {extra && (
             <div className="mt-1 rounded-xl p-3" style={{ background: "rgba(211,255,82,0.06)", border: "1px solid var(--volt-glow-2)" }}>
               <p className="text-[9px] text-volt font-cond font-bold uppercase tracking-wider mb-1.5 leading-none">피드백</p>
