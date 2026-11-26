@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Plus, Trash2, Save, CheckCircle2,
+  ArrowLeft, Plus, Trash2, Save, CheckCircle2, Check,
   User, Dumbbell, Target, Activity, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight,
   Loader2, AlertTriangle, Zap, KeyRound
@@ -599,6 +599,12 @@ function WorkoutTab({
     onUpdate();
   };
 
+  /* 회원이 깜빡했을 때 트레이너가 대신 체크/해제 */
+  const toggleHomework = async (hw: Homework) => {
+    await supabase.from("homework").update({ is_completed: !hw.is_completed }).eq("id", hw.id);
+    onUpdate();
+  };
+
   return (
     <div className="px-5 flex flex-col gap-7">
       {/* PT 수업 추가 */}
@@ -787,7 +793,15 @@ function WorkoutTab({
                 const { category, text } = parseHomeworkCategory(h.content);
                 return (
                   <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-pt-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
+                    <button
+                      onClick={() => toggleHomework(h)}
+                      title={h.is_completed ? "완료 취소" : "완료로 표시 (회원이 깜빡했을 때 대신 체크)"}
+                      className={`tap-haptic w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                        h.is_completed ? "border-volt bg-volt" : "border-pt-6 bg-transparent"
+                      }`}
+                    >
+                      {h.is_completed && <Check size={11} strokeWidth={3} color="#000" />}
+                    </button>
                     <span className="flex-1 min-w-0 flex flex-col gap-1">
                       {category && (
                         <span
@@ -979,6 +993,12 @@ function MissionTab({
   const thisWeekHomework = homework.filter((h) => h.week_start === getWeekStartISO());
   const completedCount = thisWeekHomework.filter((h) => h.is_completed).length;
 
+  /* 회원이 깜빡했을 때 트레이너가 대신 체크/해제 */
+  const toggleHomework = async (hw: Homework) => {
+    await supabase.from("homework").update({ is_completed: !hw.is_completed }).eq("id", hw.id);
+    onUpdate();
+  };
+
   return (
     <div className="px-5 flex flex-col gap-7">
       {/* 재활 소견 */}
@@ -1055,7 +1075,15 @@ function MissionTab({
               const { category, text } = parseHomeworkCategory(h.content);
               return (
                 <div key={h.id} className="flex items-center gap-3 py-2 border-b border-pt-5 last:border-0">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${h.is_completed ? "bg-volt" : "bg-pt-5"}`} />
+                  <button
+                    onClick={() => toggleHomework(h)}
+                    title={h.is_completed ? "완료 취소" : "완료로 표시 (회원이 깜빡했을 때 대신 체크)"}
+                    className={`tap-haptic w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-all ${
+                      h.is_completed ? "border-volt bg-volt" : "border-pt-6 bg-transparent"
+                    }`}
+                  >
+                    {h.is_completed && <Check size={11} strokeWidth={3} color="#000" />}
+                  </button>
                   <span className={`text-sm font-cond leading-relaxed flex-1 ${h.is_completed ? "text-ink-3 line-through" : "text-ink-0"}`}>
                     {category && <span className="text-ink-4 mr-1">[{category}]</span>}
                     {text}
