@@ -39,6 +39,12 @@ app/api/auth/
 ├── create-member/route.ts         # 트레이너가 회원 추가 시 Supabase Auth 계정도 함께 생성 (서버 전용)
 └── reset-member-password/route.ts # 트레이너가 회원 비밀번호를 대신 재설정 (서버 전용, service role 필요)
 
+app/api/
+├── parse-inbody/route.ts          # 인바디 결과지 사진 → Claude Vision으로 7개 수치 추출 (서버 전용, ANTHROPIC_API_KEY 필요)
+└── body-measurements/route.ts     # 회원 본인이 "사진으로 기록하기"로 저장할 때 쓰는 전용 경로
+                                    # (body_measurements는 RLS상 회원 쓰기 금지라서 service role로 우회하되,
+                                    #  토큰으로 본인 확인 후 서버에서 직접 조회한 member_id로만 저장)
+
 supabase/
 ├── schema.sql                # ⭐ 최종 통합 스키마 — 이 파일만 실행하면 됨
 ├── rls-policies.sql          # RLS 정책 (트레이너 전체 접근 / 회원 본인 데이터만)
@@ -52,11 +58,18 @@ supabase/
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...    # 서버 전용! NEXT_PUBLIC_ 접두사 절대 붙이지 말 것
+ANTHROPIC_API_KEY=...            # 서버 전용! 인바디 사진 자동 인식(/api/parse-inbody)에 필요
 ```
 
-Vercel에 배포할 때도 동일한 값 3개를 Environment Variables에 등록해야 합니다
+Vercel에 배포할 때도 동일한 값 4개를 Environment Variables에 등록해야 합니다
 (service role 키는 Supabase 대시보드 → Settings → API Keys →
-"Legacy anon, service_role API keys" 탭에서 확인 가능).
+"Legacy anon, service_role API keys" 탭에서 확인 가능. ANTHROPIC_API_KEY는
+https://console.anthropic.com/ 에서 발급).
+
+`@anthropic-ai/sdk` 패키지를 새로 추가했습니다 — 로컬에서 한 번
+`npm install`을 실행해야 `node_modules`에 설치됩니다 (이 샌드박스는 npm
+레지스트리 접근이 막혀 있어 설치를 대신 실행할 수 없었음). Vercel은 배포 시
+자동으로 설치하므로 별도 조치가 필요 없습니다.
 
 ## 데이터베이스 & 인증
 
@@ -80,6 +93,11 @@ Supabase Auth가 관리).
   접근 가능, 회원은 본인 `member_id`에 연결된 데이터만 조회 가능. 새 테이블을
   추가하거나 회원이 접근해야 하는 새 데이터가 생기면 이 파일에 정책을
   추가해야 함 — 안 하면 기본적으로 전부 차단됩니다.
+  - 예외: `body_measurements`는 RLS상 "트레이너가 입력, 회원은 조회만"으로
+    막혀 있지만, 회원이 "사진으로 기록하기"로 인바디를 자가 기록할 수 있게
+    `app/api/body-measurements/route.ts`가 service role로 우회합니다. RLS
+    정책 자체를 바꾼 게 아니라, 토큰으로 본인 확인 + 서버가 직접 조회한
+    `member_id`로만 쓰기를 제한하는 API route 레이어를 추가한 것입니다.
 - **비밀번호 변경/재설정**: 회원·트레이너 둘 다 각자 화면 헤더의 ⚙️ 아이콘으로
   본인 비밀번호를 직접 바꿀 수 있음 (`lib/auth.ts`의 `changePassword`,
   `components/shared/ChangePasswordModal.tsx`). 회원이 비밀번호를 잊으면
@@ -143,6 +161,9 @@ MISSION(트레이너 소견 + 숙제).
 - **풀업 역산**: 보조 무게가 낮을수록 강함 (`100 - minWeight`)
 - **출석 완료 처리**: `sessions.status = "completed"` + `members.used_sessions + 1`을 함께 처리
 - **ACSM 체지방률 등급**: 성별·연령대별 Elite/Good/Fair/Poor 기준 (`components/shared/BodyMetrics.tsx`)
+- **인바디 사진 자동 인식**: `components/shared/InBodyPhotoCapture.tsx`(회원 화면 `BodyMetrics.tsx` / 트레이너 화면
+  `BodyTab` 공용) → `/api/parse-inbody`(Claude Vision)로 7개 수치 추출 → 확인 모달에서 수정 → 저장.
+  회원 저장은 `/api/body-measurements`를 통해서만 (RLS 우회 + 본인 확인), 트레이너는 직접 insert.
 
 ## 로컬 실행
 

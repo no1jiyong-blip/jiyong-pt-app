@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Trash2, Save, CheckCircle2, Check, Circle,
   User, Dumbbell, Target, Activity, ChevronDown, ChevronUp,
-  Loader2, AlertTriangle, Zap, KeyRound
+  Loader2, AlertTriangle, Zap, KeyRound, Pencil, X as XIcon,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
@@ -18,6 +18,7 @@ import {
   formatShortKoreanDate, getTodayISO, getWeekStartISO,
   formatWeekRange, parseHomeworkCategory, HOMEWORK_CATEGORIES,
 } from "@/lib/utils";
+import type { InBodyValues } from "@/lib/inbody";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { LiveRecordModal } from "@/components/trainer/LiveRecordModal";
@@ -27,6 +28,7 @@ import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
 import { OneRMReportCard } from "@/components/shared/OneRMReportCard";
 import { AnalysisInsights } from "@/components/shared/AnalysisInsights";
+import { InBodyPhotoCapture } from "@/components/shared/InBodyPhotoCapture";
 
 type AdminTab = "home" | "workout" | "mission" | "body";
 
@@ -1249,17 +1251,19 @@ function BodyTab({
   member: Member;
   onUpdate: () => void;
 }) {
-  const [form, setForm] = useState({
+  const emptyForm = {
     measured_at: getTodayISO(),
     weight_kg: "", skeletal_muscle_kg: "", body_fat_kg: "",
     body_fat_pct: "", whr: "", bmr_kcal: "", note: "",
-  });
+  };
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("body_measurements").insert({
+    const payload = {
       member_id: memberId,
       measured_at: form.measured_at || getTodayISO(),
       weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
@@ -1269,13 +1273,60 @@ function BodyTab({
       whr: form.whr ? Number(form.whr) : null,
       bmr_kcal: form.bmr_kcal ? Number(form.bmr_kcal) : null,
       note: form.note.trim() || null,
-    });
+    };
+    const { error } = editingId
+      ? await supabase.from("body_measurements").update(payload).eq("id", editingId)
+      : await supabase.from("body_measurements").insert(payload);
     setSaving(false);
     if (error) { alert(`저장 실패: ${error.message}`); return; }
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 2500);
-    setForm({ measured_at: getTodayISO(), weight_kg: "", skeletal_muscle_kg: "", body_fat_kg: "", body_fat_pct: "", whr: "", bmr_kcal: "", note: "" });
+    setForm(emptyForm);
+    setEditingId(null);
     onUpdate();
+  };
+
+  const loadForEdit = (b: BodyMeasurement) => {
+    setEditingId(b.id);
+    setForm({
+      measured_at: b.measured_at,
+      weight_kg: b.weight_kg?.toString() ?? "",
+      skeletal_muscle_kg: b.skeletal_muscle_kg?.toString() ?? "",
+      body_fat_kg: b.body_fat_kg?.toString() ?? "",
+      body_fat_pct: b.body_fat_pct?.toString() ?? "",
+      whr: b.whr?.toString() ?? "",
+      bmr_kcal: b.bmr_kcal?.toString() ?? "",
+      note: b.note ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+  };
+
+  const deleteMeasurement = async (id: string) => {
+    if (!confirm("이 인바디 기록을 삭제할까요?")) return;
+    await supabase.from("body_measurements").delete().eq("id", id);
+    if (editingId === id) cancelEdit();
+    onUpdate();
+  };
+
+  /** 트레이너는 body_measurements 전체 접근 권한이 있으므로 직접 insert */
+  const saveFromPhoto = async (values: InBodyValues) => {
+    const { error } = await supabase.from("body_measurements").insert({
+      member_id: memberId,
+      measured_at: values.measured_at || getTodayISO(),
+      weight_kg: values.weight_kg,
+      skeletal_muscle_kg: values.skeletal_muscle_kg,
+      body_fat_kg: values.body_fat_kg,
+      body_fat_pct: values.body_fat_pct,
+      whr: values.whr,
+      bmr_kcal: values.bmr_kcal,
+      note: "트레이너가 사진으로 기록",
+    });
+    if (error) return { error: error.message };
+    return {};
   };
 
   const latest = bodyHistory[0] ?? null;
@@ -1290,9 +1341,27 @@ function BodyTab({
 
   return (
     <div className="px-5 flex flex-col gap-7">
+      {/* 사진으로 기록하기 */}
+      <section className="flex flex-col gap-4">
+        <SectionTitle bar="volt" en="PHOTO SCAN" ko="인바디 결과지 사진으로 기록" />
+        <InBodyPhotoCapture onSave={saveFromPhoto} onSaved={onUpdate} label="사진으로 기록하기" />
+      </section>
+
       {/* 입력 폼 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="volt" en="NEW MEASUREMENT" ko="인바디 수치 입력" />
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle bar="volt" en="NEW MEASUREMENT" ko={editingId ? "인바디 수치 수정" : "인바디 수치 직접 입력"} />
+          {editingId && (
+            <button
+              onClick={cancelEdit}
+              className="tap-haptic flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-cond font-bold text-ink-3 shrink-0"
+              style={{ background: "var(--pt-3)" }}
+            >
+              <XIcon size={11} />
+              취소
+            </button>
+          )}
+        </div>
         <div className="pt-card flex flex-col gap-5" style={{ padding: 22 }}>
           <div className="flex flex-col gap-2">
             <label className="text-[9px] font-cond text-ink-3 uppercase tracking-wider leading-none">측정 날짜</label>
@@ -1343,7 +1412,13 @@ function BodyTab({
             }}
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : savedFlash ? <CheckCircle2 size={16} /> : <Save size={16} />}
-            {saving ? "저장 중..." : savedFlash ? "✓ 저장됨! Body 탭에 즉시 반영" : "인바디 저장 → ACSM 자동 연산"}
+            {saving
+              ? "저장 중..."
+              : savedFlash
+              ? "✓ 저장됨! Body 탭에 즉시 반영"
+              : editingId
+              ? "수정 완료 → ACSM 자동 연산"
+              : "인바디 저장 → ACSM 자동 연산"}
           </button>
         </div>
       </section>
@@ -1395,10 +1470,34 @@ function BodyTab({
           <SectionTitle bar="volt" en="MEASUREMENT HISTORY" ko="인바디 측정 이력" />
           <div className="flex flex-col gap-2.5">
             {bodyHistory.map((b) => (
-              <div key={b.id} className="pt-card flex flex-col gap-3" style={{ padding: 18 }}>
+              <div
+                key={b.id}
+                className="pt-card flex flex-col gap-3"
+                style={{ padding: 18, border: editingId === b.id ? "1px solid var(--volt)" : undefined }}
+              >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-cond font-bold text-ink-0 text-sm leading-none">{b.measured_at}</p>
-                  {b.note && <p className="text-[10px] font-cond text-ink-3 leading-none italic truncate max-w-[50%]">{b.note}</p>}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="font-cond font-bold text-ink-0 text-sm leading-none tabular-nums shrink-0">{b.measured_at}</p>
+                    {b.note && <p className="text-[10px] font-cond text-ink-3 leading-none italic truncate">{b.note}</p>}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      onClick={() => loadForEdit(b)}
+                      aria-label="수정"
+                      className="tap-haptic w-7 h-7 rounded-lg flex items-center justify-center text-ink-3"
+                      style={{ background: "rgba(255,255,255,0.04)" }}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => deleteMeasurement(b.id)}
+                      aria-label="삭제"
+                      className="tap-haptic w-7 h-7 rounded-lg flex items-center justify-center"
+                      style={{ background: "rgba(255,59,59,0.08)", color: "var(--danger)" }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-x-5 gap-y-1.5">
                   {b.weight_kg !== null && <Metric label="체중" value={`${b.weight_kg}kg`} />}

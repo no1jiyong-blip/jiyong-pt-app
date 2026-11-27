@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   XAxis,
@@ -15,6 +15,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import type { BodyMeasurement } from "@/lib/types";
 import { getAge } from "@/lib/types";
+import { InBodyPhotoCapture } from "@/components/shared/InBodyPhotoCapture";
+import type { InBodyValues } from "@/lib/inbody";
 
 const VOLT = "#D3FF52";
 
@@ -151,18 +153,36 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
   const genderLabel = g === "male" ? "남성" : "여성";
   const ageGroupLabel = `${ageGroup.replace("s", "")}대`;
 
-  useEffect(() => {
+  const loadHistory = useCallback(async () => {
     if (!memberId) { setLoading(false); return; }
-    (async () => {
-      const { data } = await supabase
-        .from("body_measurements")
-        .select("*")
-        .eq("member_id", memberId)
-        .order("measured_at", { ascending: true });
-      setHistory((data ?? []) as BodyMeasurement[]);
-      setLoading(false);
-    })();
+    const { data } = await supabase
+      .from("body_measurements")
+      .select("*")
+      .eq("member_id", memberId)
+      .order("measured_at", { ascending: true });
+    setHistory((data ?? []) as BodyMeasurement[]);
+    setLoading(false);
   }, [memberId]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  /** 회원 본인 저장 — /api/body-measurements가 토큰으로 본인 확인 후 member_id를 서버에서 직접 조회해 저장 */
+  const saveFromPhoto = async (values: InBodyValues) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return { error: "로그인 정보를 확인할 수 없습니다. 다시 로그인해 주세요." };
+
+    const res = await fetch("/api/body-measurements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(values),
+    });
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || "저장에 실패했습니다" };
+    return {};
+  };
 
   const latest = history[history.length - 1] ?? null;
   const first   = history[0] ?? null;
@@ -248,17 +268,23 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
   if (!latest) {
     return (
-      <div className="pt-card text-center" style={{ padding: 28 }}>
-        <p className="text-ink-3 font-cond text-sm leading-relaxed">
-          아직 인바디 측정 기록이 없습니다.
-          <br />트레이너에게 측정값 입력을 요청하세요.
-        </p>
+      <div className="flex flex-col gap-4">
+        <div className="pt-card text-center" style={{ padding: 28 }}>
+          <p className="text-ink-3 font-cond text-sm leading-relaxed">
+            아직 인바디 측정 기록이 없습니다.
+            <br />인바디 결과지 사진을 올리거나 트레이너에게 입력을 요청하세요.
+          </p>
+        </div>
+        <InBodyPhotoCapture onSave={saveFromPhoto} onSaved={loadHistory} />
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-7">
+
+      {/* ─── 0. 사진으로 기록하기 ─── */}
+      <InBodyPhotoCapture onSave={saveFromPhoto} onSaved={loadHistory} />
 
       {/* ─── 1. 체성분 종합 결론 (결론 우선 — 가장 먼저 노출) ─── */}
       <section className="flex flex-col gap-4">
