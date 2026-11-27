@@ -293,7 +293,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
       const weStr = we.toISOString().slice(0, 10);
       const pt = completedSessions.filter((s) => s.date >= wsStr && s.date <= weStr).length;
       const personal = personalLogs.filter((l) => l.log_date >= wsStr && l.log_date <= weStr).length;
-      const label = i === 0 ? "이번 주" : `${ws.getMonth() + 1}/${ws.getDate()}주`;
+      const label = i === 0 ? "이번 주" : `${ws.getMonth() + 1}월 ${Math.ceil(ws.getDate() / 7)}주차`;
       weeks.push({ label, pt, personal, total: pt + personal });
     }
     return weeks;
@@ -699,7 +699,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
                     />
                   </div>
                   <span
-                    className="text-[10px] font-cond mt-2 leading-none"
+                    className="text-[10px] font-cond mt-2 leading-none tabular-nums text-center"
                     style={{ color: isLast ? "var(--ink-0)" : "var(--ink-4)", fontWeight: isLast ? 700 : 500 }}
                   >
                     {item.label}
@@ -718,7 +718,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
               >
                 <div>
-                  <p className="text-sm font-cond font-bold text-ink-0 leading-none">
+                  <p className="text-sm font-cond font-bold text-ink-0 leading-none tabular-nums">
                     {historyTab === "monthly" ? `${item.label} 누적 출석` : `${item.label} 출석`}
                   </p>
                   <p className="text-[11px] font-cond text-ink-3 mt-1 leading-none tabular-nums">

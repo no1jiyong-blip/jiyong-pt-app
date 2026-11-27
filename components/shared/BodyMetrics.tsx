@@ -143,6 +143,18 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
   const latest = history[history.length - 1] ?? null;
   const first   = history[0] ?? null;
+  const prevRecord = history.length >= 2 ? history[history.length - 2] : null;
+
+  /* 최근 측정 기준 변화 (직전 1회 대비) — 상단 결론 요약용 */
+  const muscleDeltaRecent = latest?.skeletal_muscle_kg != null && prevRecord?.skeletal_muscle_kg != null
+    ? Math.round((latest.skeletal_muscle_kg - prevRecord.skeletal_muscle_kg) * 10) / 10
+    : null;
+  const fatPctDeltaRecent = latest?.body_fat_pct != null && prevRecord?.body_fat_pct != null
+    ? Math.round((latest.body_fat_pct - prevRecord.body_fat_pct) * 10) / 10
+    : null;
+  const weightDeltaRecent = latest?.weight_kg != null && prevRecord?.weight_kg != null
+    ? Math.round((latest.weight_kg - prevRecord.weight_kg) * 10) / 10
+    : null;
 
   const grade = latest?.body_fat_pct != null
     ? getGrade(latest.body_fat_pct, g, ageGroup)
@@ -237,7 +249,37 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
   return (
     <div className="flex flex-col gap-7">
 
-      {/* ─── 1. ACSM 등급 카드 ─── */}
+      {/* ─── 0. 핵심 변화 요약 (결론 우선 — 가장 먼저 노출) ─── */}
+      <section className="flex flex-col gap-4">
+        <SectionTitle title="최근 측정 기준 변화" />
+
+        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-cond text-ink-3 tabular-nums">
+              {latest.measured_at.slice(5)} 측정
+            </span>
+            {prevRecord && (
+              <span className="text-xs font-cond text-ink-4 tabular-nums">
+                직전 {prevRecord.measured_at.slice(5)} 대비
+              </span>
+            )}
+          </div>
+
+          {prevRecord ? (
+            <div className="grid grid-cols-3 gap-2">
+              <DeltaStat label="골격근량" delta={muscleDeltaRecent} unit="kg" tone="up-good" />
+              <DeltaStat label="체지방률" delta={fatPctDeltaRecent} unit="%" tone="down-good" />
+              <DeltaStat label="체중" delta={weightDeltaRecent} unit="kg" tone="neutral" />
+            </div>
+          ) : (
+            <p className="text-sm text-ink-3 font-cond leading-relaxed">
+              측정 기록이 1건뿐이에요. 다음 측정부터 직전 대비 변화를 확인할 수 있습니다.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ─── 1. ACSM 등급 카드 (간결화 — 등급 + 동년배 수준만) ─── */}
       {grade && gradeMeta && (
         <section className="flex flex-col gap-4">
           <SectionTitle title="체성분 등급" />
@@ -293,25 +335,6 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                 )}
               </div>
             )}
-
-            {/* 체지방률 게이지 */}
-            {latest.body_fat_pct != null && (
-              <BFGauge
-                value={latest.body_fat_pct}
-                gender={g}
-                ageGroup={ageGroup}
-                color={gradeMeta.color}
-              />
-            )}
-
-            {/* 동일 연령대 표준 비교표 */}
-            <BenchmarkTable
-              gender={g}
-              ageGroup={ageGroup}
-              smmKg={latest.skeletal_muscle_kg}
-              bfPct={latest.body_fat_pct}
-              whr={latest.whr}
-            />
           </div>
         </section>
       )}
@@ -472,7 +495,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="체중"
             value={latest.weight_kg}
             unit="kg"
-            prevValue={first?.weight_kg}
+            prevValue={prevRecord?.weight_kg}
             color="#cbd5e1"
             inverse
             expandable
@@ -488,7 +511,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="골격근량"
             value={latest.skeletal_muscle_kg}
             unit="kg"
-            prevValue={first?.skeletal_muscle_kg}
+            prevValue={prevRecord?.skeletal_muscle_kg}
             color="#D3FF52"
             expandable
             isExpanded={expandedIdx === 1}
@@ -502,7 +525,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="체지방량"
             value={latest.body_fat_kg}
             unit="kg"
-            prevValue={first?.body_fat_kg}
+            prevValue={prevRecord?.body_fat_kg}
             color="#ff8c00"
             inverse
             expandable
@@ -517,7 +540,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="체지방률"
             value={latest.body_fat_pct}
             unit="%"
-            prevValue={first?.body_fat_pct}
+            prevValue={prevRecord?.body_fat_pct}
             color="#ff5577"
             inverse
             expandable
@@ -532,7 +555,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="복부지방률 WHR"
             value={latest.whr}
             unit=""
-            prevValue={first?.whr}
+            prevValue={prevRecord?.whr}
             color="#8c78ff"
             inverse
             expandable={false}
@@ -543,7 +566,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             label="기초대사량 BMR"
             value={latest.bmr_kcal}
             unit="kcal"
-            prevValue={first?.bmr_kcal}
+            prevValue={prevRecord?.bmr_kcal}
             color="#5BA8FF"
             expandable={false}
             rangePercent={bmrRangePct}
@@ -564,6 +587,34 @@ function SectionTitle({ title }: { title: string }) {
     <h3 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
       {title}
     </h3>
+  );
+}
+
+/* 핵심 변화 요약 카드의 3단 스탯 (직전 측정 대비) */
+function DeltaStat({
+  label, delta, unit, tone,
+}: {
+  label: string;
+  delta: number | null;
+  unit: string;
+  tone: "up-good" | "down-good" | "neutral";
+}) {
+  const color =
+    delta == null || delta === 0 ? "var(--ink-2)"
+    : tone === "neutral" ? "var(--ink-0)"
+    : tone === "up-good" ? (delta > 0 ? "var(--volt)" : "var(--danger)")
+    : (delta < 0 ? "var(--volt)" : "var(--danger)");
+
+  return (
+    <div
+      className="flex flex-col gap-1.5 items-center text-center rounded-xl p-3"
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--pt-5)" }}
+    >
+      <span className="text-[10px] font-cond font-semibold text-ink-3 leading-none">{label}</span>
+      <span className="font-mono-num font-extrabold text-base leading-none" style={{ color }}>
+        {delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta}${unit}`}
+      </span>
+    </div>
   );
 }
 
@@ -674,7 +725,7 @@ function MetricCard({
           className="text-[10px] font-cond font-bold leading-none tabular-nums"
           style={{ color: deltaColor }}
         >
-          {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}{unit} <span className="text-ink-4">· 시작 대비</span>
+          {delta > 0 ? "▲" : "▼"} {Math.abs(delta)}{unit} <span className="text-ink-4">· 직전 대비</span>
         </p>
       )}
       {rangePercent != null && (
@@ -709,177 +760,6 @@ function MetricCard({
           </ResponsiveContainer>
         </div>
       )}
-    </div>
-  );
-}
-
-/**
- * 동년배 표준 기준 비교표 — 내 수치 / 추정 평균 / 이상적 기준(Good 등급) / 평균 대비
- * "추정 평균"은 실측 인구 평균이 아니라 ACSM/WHO Good~Fair 구간의 중간값으로 근사한 값
- * (과장 방지를 위해 표 하단에 근거를 명시)
- */
-function BenchmarkTable({
-  gender, ageGroup, smmKg, bfPct, whr,
-}: {
-  gender: "male" | "female";
-  ageGroup: "20s" | "30s" | "40s" | "50s";
-  smmKg: number | null;
-  bfPct: number | null;
-  whr: number | null;
-}) {
-  const bfRef = ACSM_BF[gender][ageGroup];
-  const smmRef = TARGET_SMM[gender];
-  const whrRef = WHR_BANDS[gender];
-
-  const rows: {
-    key: string;
-    label: string;
-    current: number | null;
-    unit: string;
-    avgEstimate: number;
-    ideal: string;
-    higherIsBetter: boolean;
-  }[] = [
-    {
-      key: "smm",
-      label: "골격근량",
-      current: smmKg,
-      unit: "kg",
-      // Fair 기준치보다 약간 낮은 지점을 "일반 평균"으로 근사 (퍼센타일 칩의 50% 기준점과 정합성 유지)
-      avgEstimate: Math.round((smmRef.fair - (smmRef.good - smmRef.fair) / 3) * 10) / 10,
-      ideal: `${smmRef.good}kg 이상`,
-      higherIsBetter: true,
-    },
-    {
-      key: "bf",
-      label: "체지방률",
-      current: bfPct,
-      unit: "%",
-      avgEstimate: Math.round(((bfRef.good + bfRef.fair) / 2) * 10) / 10,
-      ideal: `${bfRef.elite}~${bfRef.good}%`,
-      higherIsBetter: false,
-    },
-    {
-      key: "whr",
-      label: "복부지방률",
-      current: whr,
-      unit: "",
-      avgEstimate: Math.round(((whrRef.good + whrRef.fair) / 2) * 100) / 100,
-      ideal: `${whrRef.good} 이하`,
-      higherIsBetter: false,
-    },
-  ];
-
-  const visibleRows = rows.filter((r) => r.current != null);
-  if (visibleRows.length === 0) return null;
-
-  return (
-    <div
-      className="rounded-2xl p-4"
-      style={{ background: "rgba(0,0,0,0.4)", border: "1px solid var(--pt-5)" }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-cond font-black text-ink-0 tracking-wide">
-          동일 연령대 표준 비교표
-        </span>
-        <span className="text-[10px] font-cond text-ink-4">
-          {ageGroup.replace("s", "")}대 {gender === "male" ? "남성" : "여성"} · ACSM 기준
-        </span>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="text-[9px] font-cond font-bold text-ink-4" style={{ borderBottom: "1px solid var(--pt-5)" }}>
-              <th className="pb-2 font-bold">항목</th>
-              <th className="pb-2 text-right font-bold">내 수치</th>
-              <th className="pb-2 text-right font-bold">추정 평균</th>
-              <th className="pb-2 text-right font-bold">이상적 기준</th>
-              <th className="pb-2 text-right font-bold">평균 대비</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map((row) => {
-              const diff = Math.round(((row.current as number) - row.avgEstimate) * 100) / 100;
-              const isBetter = row.higherIsBetter ? diff > 0 : diff < 0;
-              const diffColor = diff === 0 ? "var(--ink-3)" : isBetter ? "var(--volt)" : "#ff8080";
-              return (
-                <tr key={row.key} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                  <td className="py-2 text-xs font-cond font-bold text-ink-2">{row.label}</td>
-                  <td className="py-2 text-right font-mono-num font-black text-ink-0 text-xs">
-                    {row.current}{row.unit}
-                  </td>
-                  <td className="py-2 text-right font-mono-num text-ink-3 text-xs">
-                    {row.avgEstimate}{row.unit}
-                  </td>
-                  <td className="py-2 text-right font-mono-num text-ink-2 text-xs">{row.ideal}</td>
-                  <td className="py-2 text-right">
-                    <span
-                      className="inline-block text-[10px] font-mono-num font-bold px-2 py-0.5 rounded"
-                      style={{ background: `${diffColor}1A`, color: diffColor }}
-                    >
-                      {diff > 0 ? "+" : ""}{diff}{row.unit}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      <p className="text-[9px] font-cond text-ink-4 leading-relaxed mt-2.5">
-        ※ 추정 평균은 ACSM/WHO 등급 구간(Good~Fair)의 중간값으로 근사한 값이며, 실측 인구 평균 통계가 아닙니다.
-      </p>
-    </div>
-  );
-}
-
-/* 체지방률 게이지 */
-function BFGauge({
-  value, gender, ageGroup, color,
-}: {
-  value: number;
-  gender: "male" | "female";
-  ageGroup: "20s" | "30s" | "40s" | "50s";
-  color: string;
-}) {
-  const ref = ACSM_BF[gender][ageGroup];
-  const maxBF = ref.fair + 8;
-  const pct = Math.min(100, (value / maxBF) * 100);
-
-  return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider leading-none">
-          체지방률 위치
-        </p>
-        <p className="font-display leading-none tabular-nums" style={{ fontSize: 18, color }}>
-          {value}%
-        </p>
-      </div>
-      <div
-        className="w-full rounded-full overflow-hidden"
-        style={{ height: 12, background: "linear-gradient(90deg, #D3FF52 0%, #ff8c00 55%, #ff5577 100%)", border: "1px solid var(--pt-5)" }}
-      >
-        <div
-          className="h-full flex justify-end items-center pr-1"
-          style={{
-            width: `${pct}%`,
-            background: "rgba(0,0,0,0.0)",
-          }}
-        >
-          <div
-            className="rounded-full shrink-0"
-            style={{ width: 14, height: 14, background: "#fff", border: "2px solid #000", boxShadow: `0 0 8px ${color}` }}
-          />
-        </div>
-      </div>
-      <div className="flex justify-between text-[9px] font-cond text-ink-3 leading-none">
-        <span className="text-volt font-bold">Elite ≤{ref.elite}%</span>
-        <span>Good ≤{ref.good}%</span>
-        <span>Fair ≤{ref.fair}%</span>
-        <span className="text-danger">Poor</span>
-      </div>
     </div>
   );
 }
