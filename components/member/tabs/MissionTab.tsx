@@ -275,46 +275,33 @@ export function MissionTab({ homework, sessions, onUpdate }: Props) {
             )}
           </div>
 
-          <div className="flex flex-col gap-3">
-            {filteredPastWeeks.map((w) => {
+          <div className="pt-card flex flex-col" style={{ padding: 0 }}>
+            {filteredPastWeeks.map((w, idx) => {
               const isExpanded = expandedWeek === w.weekStart;
               return (
                 <div
                   key={w.weekStart}
-                  className="pt-card flex flex-col gap-3"
-                  style={{ padding: 18 }}
+                  style={
+                    idx < filteredPastWeeks.length - 1
+                      ? { borderBottom: "1px solid rgba(255,255,255,0.06)" }
+                      : undefined
+                  }
                 >
                   <button
                     type="button"
                     onClick={() => setExpandedWeek(isExpanded ? null : w.weekStart)}
-                    className="tap-haptic w-full flex items-center justify-between gap-3 text-left"
+                    className="tap-haptic w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left"
                   >
-                    <div className="flex flex-col gap-1 min-w-0">
-                      <span className="text-sm font-bold text-ink-0">
-                        {w.rangeLabel}{" "}
-                        <span className="text-ink-3 font-cond text-xs">
-                          ({w.weekLabel})
-                        </span>
-                      </span>
-                      <span className="text-xs font-cond text-ink-3">
-                        {w.completed}/{w.total} 완료 · {w.pct}%
-                      </span>
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-sm font-bold text-ink-0">{w.weekLabel}</span>
+                      <span className="text-xs font-cond text-ink-3 tabular-nums">{w.rangeLabel}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span
-                        className="font-mono-num font-bold text-xs px-2 py-1 rounded-full"
-                        style={{
-                          background:
-                            w.pct === 100
-                              ? "rgba(211,255,82,0.12)"
-                              : "rgba(255,255,255,0.05)",
-                          color: w.pct === 100 ? "var(--volt)" : "var(--ink-2)",
-                          border: `1px solid ${
-                            w.pct === 100 ? "var(--volt-glow-2)" : "var(--pt-5)"
-                          }`,
-                        }}
+                        className="text-xs font-cond font-bold tabular-nums"
+                        style={{ color: w.pct === 100 ? "var(--volt)" : "var(--ink-2)" }}
                       >
-                        {w.pct}%
+                        {w.completed}/{w.total} 완료 · {w.pct}%
                       </span>
                       {isExpanded ? (
                         <ChevronUp size={16} className="text-ink-3" />
@@ -326,8 +313,8 @@ export function MissionTab({ homework, sessions, onUpdate }: Props) {
 
                   {isExpanded && (
                     <div
-                      className="flex flex-col gap-3 pt-3"
-                      style={{ borderTop: "1px solid var(--pt-5)" }}
+                      className="px-4 pb-4 pt-1 flex flex-col gap-3"
+                      style={{ background: "rgba(0,0,0,0.3)" }}
                     >
                       <div className="flex flex-col gap-2">
                         {w.items.map((hw) => {
@@ -336,7 +323,7 @@ export function MissionTab({ homework, sessions, onUpdate }: Props) {
                             <div
                               key={hw.id}
                               className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-xs"
-                              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
+                              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}
                             >
                               <div className="flex items-center gap-2.5 min-w-0">
                                 <div
