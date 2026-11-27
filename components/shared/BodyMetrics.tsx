@@ -37,16 +37,10 @@ const ACSM_BF: Record<
   },
 };
 
-/* 목표 골격근량 기준 — 절대 kg (수준 칩의 퍼센타일 계산용) */
+/* 목표 골격근량 기준 — 절대 kg (수준 칩의 퍼센타일 계산 + 기준표 공용) */
 const TARGET_SMM: Record<"male" | "female", { elite: number; good: number; fair: number }> = {
   male:   { elite: 38, good: 35, fair: 32 },
   female: { elite: 26, good: 23, fair: 21 },
-};
-
-/* 골격근량 — 체중 대비 %(SMM%) 기준 (일반적인 체성분 분석 기준치 근사값, 연령 구분 없음) */
-const SMM_PCT_BANDS: Record<"male" | "female", { elite: number; good: number }> = {
-  male:   { elite: 39.3, good: 33.3 },
-  female: { elite: 30.3, good: 24.3 },
 };
 
 /* 복부지방률(WHR) 기준 — WHO 허리엉덩이둘레비 위험기준(남 0.90 / 여 0.85)을 Elite~Fair 3단계로 세분화 */
@@ -219,11 +213,6 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
   const bestChipKey = levelChips.length > 0
     ? levelChips.reduce((best, c) => (c.percentile > best.percentile ? c : best)).key
-    : null;
-
-  /* 골격근량 — 체중 대비 % (기준표 전용) */
-  const smmPct = latest?.skeletal_muscle_kg != null && latest?.weight_kg
-    ? Math.round((latest.skeletal_muscle_kg / latest.weight_kg) * 1000) / 10
     : null;
 
   /* BODY TREND 섹션 — 기간 필터링 */
@@ -450,7 +439,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
           genderLabel={genderLabel}
           ageGroupLabel={ageGroupLabel}
           bfPct={latest.body_fat_pct}
-          smmPct={smmPct}
+          smmKg={latest.skeletal_muscle_kg}
           whr={latest.whr}
         />
       </section>
@@ -599,18 +588,18 @@ function MetricRow({
 
 /* 성별·연령 맞춤 기준표 — 표준 이하/표준/우수(상위) 3단, 현재 위치만 볼트 하이라이트 */
 function StandardsTable({
-  gender, ageGroup, genderLabel, ageGroupLabel, bfPct, smmPct, whr,
+  gender, ageGroup, genderLabel, ageGroupLabel, bfPct, smmKg, whr,
 }: {
   gender: "male" | "female";
   ageGroup: "20s" | "30s" | "40s" | "50s";
   genderLabel: string;
   ageGroupLabel: string;
   bfPct: number | null;
-  smmPct: number | null;
+  smmKg: number | null;
   whr: number | null;
 }) {
   const bf = ACSM_BF[gender][ageGroup];
-  const smm = SMM_PCT_BANDS[gender];
+  const smm = TARGET_SMM[gender];
   const whrRef = WHR_BANDS[gender];
 
   const rows: { key: string; label: string; cells: [string, string, string]; currentBand: 0 | 1 | 2 | null }[] = [
@@ -622,9 +611,9 @@ function StandardsTable({
     },
     {
       key: "smm",
-      label: "골격근량(체중 대비)",
-      cells: [`${smm.good}% 미만`, `${smm.good}~${smm.elite}%`, `${smm.elite}% 이상`],
-      currentBand: smmPct != null ? bandHigherBetter(smmPct, smm.elite, smm.good) : null,
+      label: "골격근량",
+      cells: [`${smm.good}kg 미만`, `${smm.good}~${smm.elite}kg`, `${smm.elite}kg 이상`],
+      currentBand: smmKg != null ? bandHigherBetter(smmKg, smm.elite, smm.good) : null,
     },
     {
       key: "whr",
@@ -685,9 +674,7 @@ function StandardsTable({
         </tbody>
       </table>
 
-      <p className="text-[9px] font-cond text-ink-4 leading-relaxed px-5 pt-2.5 pb-4">
-        ※ 골격근량(체중 대비 %) 기준은 일반적인 체성분 분석 기준치의 근사값입니다.
-      </p>
+      <div style={{ height: 16 }} />
     </div>
   );
 }
