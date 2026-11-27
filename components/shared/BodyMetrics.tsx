@@ -366,9 +366,10 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
             <ResponsiveContainer width="100%" height={176}>
               <AreaChart data={trendHistory} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
                 <defs>
+                  {/* 라인 직하단에만 아주 미세하게 번지는 페이드 — 넓은 면 채우기 대신 포인트 강조용 */}
                   <linearGradient id="bodyTrendGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={VOLT} stopOpacity={0.24} />
-                    <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
+                    <stop offset="0%" stopColor={VOLT} stopOpacity={0.12} />
+                    <stop offset="22%" stopColor={VOLT} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
@@ -491,10 +492,10 @@ function PercentileChip({
     >
       <span className="text-[10px] font-cond font-semibold text-ink-3 block leading-none mb-1">{label}</span>
       <span
-        className="font-mono-num font-extrabold text-sm tabular-nums"
+        className="font-cond font-bold text-sm leading-none"
         style={{ color: highlight ? "var(--volt)" : "var(--ink-0)" }}
       >
-        상위 {topPct}%
+        상위 <span className="font-mono-num font-bold tabular-nums">{topPct}</span>%
       </span>
     </div>
   );
@@ -524,8 +525,8 @@ function TrendTab({
       className="tap-haptic p-2.5 rounded-2xl text-left transition-all"
       style={
         active
-          ? { background: "rgba(211,255,82,0.07)", border: "1px solid var(--volt-glow-2)" }
-          : { background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }
+          ? { background: "rgba(211,255,82,0.07)" }
+          : { background: "rgba(255,255,255,0.02)" }
       }
     >
       <div className="flex items-center gap-1.5">

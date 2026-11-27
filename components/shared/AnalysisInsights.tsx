@@ -397,7 +397,92 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
 
   return (
     <div className="flex flex-col gap-7">
-      {/* ─── 1. 이번 주 활동 ─── */}
+      {/* ─── 1. 4주 성장 진단 (핵심 진단 요약 — 결론 우선, 가장 먼저 노출) ─── */}
+      <section className="flex flex-col gap-4">
+        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+          4주 성장 진단
+        </span>
+
+        <div
+          className="pt-card flex flex-col gap-5"
+          style={{
+            padding: 24,
+            background: `linear-gradient(160deg, ${char.bg} 0%, rgba(20,20,20,0.85) 70%)`,
+            borderColor: char.border,
+            boxShadow: `0 0 20px ${char.bg}`,
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <span
+              style={{
+                fontSize: 52,
+                filter: `drop-shadow(0 0 12px ${char.color}60)`,
+                lineHeight: 1,
+              }}
+            >
+              {char.emoji}
+            </span>
+            <div className="flex flex-col gap-2 min-w-0">
+              <div className="flex items-center gap-2">
+                <Sparkles size={12} style={{ color: char.color }} />
+                <p
+                  className="text-[10px] font-cond font-bold tracking-wide-2 uppercase leading-none"
+                  style={{ color: char.color }}
+                >
+                  4주 성장 캐릭터
+                </p>
+              </div>
+              <p
+                className="font-display uppercase leading-none"
+                style={{
+                  color: char.color,
+                  fontSize: 24,
+                  textShadow: `0 0 12px ${char.color}50`,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {char.label}
+              </p>
+            </div>
+          </div>
+
+          {/* 수치 요약 */}
+          <div className="grid grid-cols-3 gap-2">
+            <MiniMetric
+              label="주 평균 출석"
+              value={`${allTimeAvg.weeklyAvg}회`}
+              sub="전체 운동 기준"
+              positive
+            />
+            <MiniMetric
+              label="월 평균 출석"
+              value={`${allTimeAvg.monthlyAvg}회`}
+              sub="누적 월 평균"
+              positive
+            />
+            <MiniMetric
+              label="4주 근력 성장"
+              value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
+              sub={strengthGrowth.bestEx || "—"}
+              positive={strengthGrowth.avgPct >= 0}
+              accent
+            />
+          </div>
+
+          {/* 서사 */}
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <p className="text-sm text-ink-1 leading-relaxed">{narrative}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 2. 이번 주 활동 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
@@ -489,7 +574,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
         </div>
       </section>
 
-      {/* ─── 2. 월별/주별 출석 기록 ─── */}
+      {/* ─── 3. 월별/주별 출석 기록 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
@@ -580,91 +665,6 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
                 </span>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 3. 4주 성장 진단 (핵심 진단 요약 — 흐름의 마지막) ─── */}
-      <section className="flex flex-col gap-4">
-        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
-          4주 성장 진단
-        </span>
-
-        <div
-          className="pt-card flex flex-col gap-5"
-          style={{
-            padding: 24,
-            background: `linear-gradient(160deg, ${char.bg} 0%, rgba(20,20,20,0.85) 70%)`,
-            borderColor: char.border,
-            boxShadow: `0 0 20px ${char.bg}`,
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <span
-              style={{
-                fontSize: 52,
-                filter: `drop-shadow(0 0 12px ${char.color}60)`,
-                lineHeight: 1,
-              }}
-            >
-              {char.emoji}
-            </span>
-            <div className="flex flex-col gap-2 min-w-0">
-              <div className="flex items-center gap-2">
-                <Sparkles size={12} style={{ color: char.color }} />
-                <p
-                  className="text-[10px] font-cond font-bold tracking-wide-2 uppercase leading-none"
-                  style={{ color: char.color }}
-                >
-                  4주 성장 캐릭터
-                </p>
-              </div>
-              <p
-                className="font-display uppercase leading-none"
-                style={{
-                  color: char.color,
-                  fontSize: 24,
-                  textShadow: `0 0 12px ${char.color}50`,
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {char.label}
-              </p>
-            </div>
-          </div>
-
-          {/* 수치 요약 */}
-          <div className="grid grid-cols-3 gap-2">
-            <MiniMetric
-              label="주 평균 출석"
-              value={`${allTimeAvg.weeklyAvg}회`}
-              sub="전체 운동 기준"
-              positive
-            />
-            <MiniMetric
-              label="월 평균 출석"
-              value={`${allTimeAvg.monthlyAvg}회`}
-              sub="누적 월 평균"
-              positive
-            />
-            <MiniMetric
-              label="4주 근력 성장"
-              value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
-              sub={strengthGrowth.bestEx || "—"}
-              positive={strengthGrowth.avgPct >= 0}
-              accent
-            />
-          </div>
-
-          {/* 서사 */}
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <p className="text-sm text-ink-1 leading-relaxed">{narrative}</p>
           </div>
         </div>
       </section>
