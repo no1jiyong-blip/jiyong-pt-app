@@ -240,7 +240,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
       {/* ─── 1. ACSM 등급 카드 ─── */}
       {grade && gradeMeta && (
         <section className="flex flex-col gap-4">
-          <SectionTitle en="ACSM GRADE" ko="체성분 등급" />
+          <SectionTitle title="체성분 등급" />
 
           <div
             className="pt-card flex flex-col gap-5"
@@ -320,7 +320,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
       {history.length >= 2 && (
         <section className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
-            <SectionTitle en="BODY TREND" ko="기간별 체성분 누적 변화 추이" />
+            <SectionTitle title="체성분 변화 추이" />
             <div
               className="flex gap-1 p-1 rounded-xl shrink-0"
               style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
@@ -464,7 +464,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
       {/* ─── 3. 6종 지표 카드 ─── */}
       <section className="flex flex-col gap-4">
-        <SectionTitle en="INBODY METRICS" ko="체성분 주요 지표" />
+        <SectionTitle title="체성분 주요 지표" />
 
         <div className="grid grid-cols-2 gap-3">
           <MetricCard
@@ -559,17 +559,11 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
    서브 컴포넌트
    ═══════════════════════════════════════ */
 
-function SectionTitle({ en, ko }: { en: string; ko: string }) {
+function SectionTitle({ title }: { title: string }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <h3
-        className="font-display text-ink-0 leading-none tracking-wide uppercase"
-        style={{ fontSize: 20 }}
-      >
-        {en}
-      </h3>
-      <p className="text-[11px] font-cond text-ink-3 leading-none">{ko}</p>
-    </div>
+    <h3 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+      {title}
+    </h3>
   );
 }
 

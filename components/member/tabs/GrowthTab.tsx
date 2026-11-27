@@ -208,16 +208,7 @@ export function GrowthTab({
       {/* ─── STRENGTH 탭 ─── */}
       {subTab === "strength" && (
         <div className="flex flex-col gap-8">
-          {/* ① Muscle Balance 레이더 (STRENGTH 탭으로 통합) */}
-          <div className="px-5">
-            <MuscleBalanceRadar
-              sessions={sessions}
-              recordsBySession={recordsBySession}
-              qualities={qualities}
-            />
-          </div>
-
-          {/* ② 3대 운동 — BIG 3 TOTAL + 통합 히어로 카드 */}
+          {/* ① 3대 운동 핵심 결론 — BIG 3 TOTAL + 통합 히어로 카드 (가장 먼저 노출) */}
           <section className="px-5 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
@@ -319,6 +310,15 @@ export function GrowthTab({
               );
             })()}
           </section>
+
+          {/* ② Muscle Balance 레이더 — 결론 다음 상세 */}
+          <div className="px-5">
+            <MuscleBalanceRadar
+              sessions={sessions}
+              recordsBySession={recordsBySession}
+              qualities={qualities}
+            />
+          </div>
 
           {/* ③ 보조 종목 그리드 */}
           <div className="px-5">

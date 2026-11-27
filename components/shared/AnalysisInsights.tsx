@@ -433,245 +433,11 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
 
   return (
     <div className="flex flex-col gap-7">
-      {/* ─── 1. 이번 주 활동 리포트 ─── */}
+      {/* ─── 1. 4주 성장 진단 (결론 우선 — 가장 먼저 노출) ─── */}
       <section className="flex flex-col gap-4">
-        <div className="flex items-end justify-between gap-2">
-          <div className="flex flex-col gap-1.5">
-            <h3
-              className="font-display text-ink-0 leading-none tracking-wide uppercase"
-              style={{ fontSize: 20 }}
-            >
-              ACTIVITY REPORT
-            </h3>
-            <p className="text-[11px] font-cond text-ink-3 leading-none">
-              이번 주 운동 횟수와 월별 출석 기록을 확인하세요
-            </p>
-          </div>
-          <CalendarDays size={16} className="text-volt mb-1" />
-        </div>
-
-        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className="text-[10px] font-cond font-bold px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}
-            >
-              이번 주 ({thisWeekRangeLabel})
-            </span>
-            <span className="text-[11px] font-cond text-ink-3">
-              수업 <strong style={{ color: "var(--volt)" }}>{attendance.thisWeekPT}회</strong> · 개인{" "}
-              <strong style={{ color: "#5BA8FF" }}>{attendance.thisWeekPersonal}회</strong>
-            </span>
-          </div>
-
-          <div>
-            <p className="text-[11px] font-cond text-ink-3 mb-1">이번 주 총 운동 참여</p>
-            <div className="flex items-baseline gap-1.5">
-              <span className="font-display leading-none" style={{ fontSize: 40, color: "var(--ink-0)" }}>
-                {attendance.thisWeekPT + attendance.thisWeekPersonal}
-              </span>
-              <span className="text-base font-cond font-bold text-ink-3">회</span>
-            </div>
-          </div>
-
-          {/* 월~일 요일별 참여 인디케이터 */}
-          <div className="grid grid-cols-7 gap-1.5">
-            {thisWeekDays.map((item) => {
-              const isPt = item.status === "pt" || item.status === "both";
-              const isPersonal = item.status === "personal" || item.status === "both";
-              return (
-                <div
-                  key={item.day}
-                  className="flex flex-col items-center justify-center py-2 rounded-xl"
-                  style={
-                    isPt
-                      ? { background: "rgba(211,255,82,0.10)", border: "1px solid rgba(211,255,82,0.4)", color: "var(--volt)" }
-                      : isPersonal
-                      ? { background: "rgba(91,168,255,0.10)", border: "1px solid rgba(91,168,255,0.4)", color: "#5BA8FF" }
-                      : { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--ink-4)" }
-                  }
-                >
-                  <span className="text-xs font-cond font-bold leading-none">{item.day}</span>
-                  <div className="flex items-center justify-center gap-1 mt-1.5" style={{ height: 6 }}>
-                    {isPt && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-                    )}
-                    {isPersonal && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-                    )}
-                    {!isPt && !isPersonal && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 저번 주 비교 */}
-        <div className="pt-card flex items-center justify-between gap-3" style={{ padding: 16 }}>
-          <span className="text-[11px] font-cond text-ink-3">저번 주 운동 참여</span>
-          <div className="flex items-center gap-2">
-            <span className="font-cond font-bold leading-none text-ink-0" style={{ fontSize: 13 }}>
-              총 {attendance.prevWeekPT + attendance.prevWeekPersonal}회
-            </span>
-            <span className="text-[11px] font-cond text-ink-4">
-              (수업 {attendance.prevWeekPT} · 개인 {attendance.prevWeekPersonal})
-            </span>
-            {weekDiff !== 0 && (
-              <span
-                className="flex items-center gap-0.5 text-[11px] font-cond font-bold"
-                style={{ color: weekDiff > 0 ? "var(--volt)" : "var(--danger)" }}
-              >
-                {weekDiff > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {weekDiff > 0 ? "+" : ""}
-                {weekDiff}
-              </span>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 2. 출석 캘린더 ─── */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h3
-            className="font-display text-ink-0 leading-none tracking-wide uppercase"
-            style={{ fontSize: 20 }}
-          >
-            ATTENDANCE
-          </h3>
-          <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-              수업
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-              개인
-            </span>
-          </div>
-        </div>
-
-        <AttendanceCalendar
-          year={calendarYear}
-          month={calendarMonth}
-          selectedDate={calendarSelectedDate}
-          onSelectDate={setCalendarSelectedDate}
-          onPrevMonth={handlePrevCalendarMonth}
-          onNextMonth={handleNextCalendarMonth}
-          records={attendanceRecords}
-          monthTotal={calendarMonthTotal}
-        />
-      </section>
-
-      {/* ─── 3. 월별/주별 출석 기록 ─── */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3
-            className="font-display text-ink-0 leading-none tracking-wide uppercase"
-            style={{ fontSize: 20 }}
-          >
-            ATTENDANCE LOG
-          </h3>
-          <div
-            className="flex gap-1 p-1 rounded-xl shrink-0"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
-          >
-            {(["monthly", "weekly"] as const).map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setHistoryTab(g)}
-                className="tap-haptic px-2.5 py-1 rounded-lg text-[10px] font-cond font-bold transition-all"
-                style={
-                  historyTab === g
-                    ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
-                    : { color: "var(--ink-3)" }
-                }
-              >
-                {g === "monthly" ? "월별" : "주별"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          {/* 막대 그래프 */}
-          <div
-            className="grid grid-cols-6 gap-2 items-end"
-            style={{ height: 150, borderBottom: "1px solid rgba(255,255,255,0.07)", paddingTop: 20, paddingBottom: 12 }}
-          >
-            {activeHistory.map((item, idx) => {
-              const heightPct = Math.round((item.total / historyMax) * 100);
-              const isLast = idx === activeHistory.length - 1;
-              return (
-                <div key={item.label} className="flex flex-col items-center h-full justify-end">
-                  <span
-                    className="text-[11px] font-cond font-bold mb-1.5 leading-none"
-                    style={{ color: isLast ? "var(--volt)" : "var(--ink-2)" }}
-                  >
-                    {item.total}회
-                  </span>
-                  <div
-                    className="w-full flex items-end overflow-hidden"
-                    style={{ maxWidth: 26, height: 96, background: "rgba(255,255,255,0.05)", borderRadius: "8px 8px 0 0" }}
-                  >
-                    <div
-                      style={{
-                        height: `${heightPct}%`,
-                        width: "100%",
-                        background: isLast ? "var(--volt)" : "rgba(255,255,255,0.18)",
-                        borderRadius: "8px 8px 0 0",
-                      }}
-                    />
-                  </div>
-                  <span
-                    className="text-[10px] font-cond mt-2 leading-none"
-                    style={{ color: isLast ? "var(--ink-0)" : "var(--ink-4)", fontWeight: isLast ? 700 : 500 }}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* 상세 데이터 리스트 */}
-          <div className="flex flex-col gap-2.5">
-            {[...activeHistory].reverse().map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between rounded-2xl px-4 py-3"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-              >
-                <div>
-                  <p className="text-sm font-cond font-bold text-ink-0 leading-none">
-                    {historyTab === "monthly" ? `${item.label} 누적 출석` : `${item.label} 출석`}
-                  </p>
-                  <p className="text-[11px] font-cond text-ink-3 mt-1 leading-none">
-                    수업 참여 <span style={{ color: "var(--volt)", fontWeight: 700 }}>{item.pt}회</span> · 개인 운동{" "}
-                    <span style={{ color: "#5BA8FF", fontWeight: 700 }}>{item.personal}회</span>
-                  </p>
-                </div>
-                <span className="font-display tabular-nums leading-none" style={{ fontSize: 18, color: "var(--ink-0)" }}>
-                  {item.total}회
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 4. 4주 성장 캐릭터 진단 ─── */}
-      <section className="flex flex-col gap-4">
-        <h3
-          className="font-display text-ink-0 leading-none tracking-wide uppercase"
-          style={{ fontSize: 20 }}
-        >
-          CHARACTER DIAGNOSIS
-        </h3>
+        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+          4주 성장 진단
+        </span>
 
         <div
           className="pt-card flex flex-col gap-5"
@@ -751,6 +517,223 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
           </div>
         </div>
       </section>
+
+      {/* ─── 2. 이번 주 활동 ─── */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            이번 주 활동
+          </span>
+          <CalendarDays size={15} className="text-volt" />
+        </div>
+
+        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="text-[10px] font-cond font-bold px-2.5 py-1 rounded-full"
+              style={{ background: "rgba(211,255,82,0.12)", color: "var(--volt)" }}
+            >
+              이번 주 ({thisWeekRangeLabel})
+            </span>
+            <span className="text-[11px] font-cond text-ink-3">
+              수업 <strong className="tabular-nums" style={{ color: "var(--volt)" }}>{attendance.thisWeekPT}회</strong> · 개인{" "}
+              <strong className="tabular-nums" style={{ color: "#5BA8FF" }}>{attendance.thisWeekPersonal}회</strong>
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[11px] font-cond text-ink-3 mb-1">이번 주 총 운동 참여</p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-display leading-none tabular-nums" style={{ fontSize: 40, color: "var(--ink-0)" }}>
+                {attendance.thisWeekPT + attendance.thisWeekPersonal}
+              </span>
+              <span className="text-base font-cond font-bold text-ink-3">회</span>
+            </div>
+          </div>
+
+          {/* 월~일 요일별 참여 인디케이터 */}
+          <div className="grid grid-cols-7 gap-1.5">
+            {thisWeekDays.map((item) => {
+              const isPt = item.status === "pt" || item.status === "both";
+              const isPersonal = item.status === "personal" || item.status === "both";
+              return (
+                <div
+                  key={item.day}
+                  className="flex flex-col items-center justify-center py-2 rounded-xl"
+                  style={
+                    isPt
+                      ? { background: "rgba(211,255,82,0.10)", border: "1px solid rgba(211,255,82,0.4)", color: "var(--volt)" }
+                      : isPersonal
+                      ? { background: "rgba(91,168,255,0.10)", border: "1px solid rgba(91,168,255,0.4)", color: "#5BA8FF" }
+                      : { background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", color: "var(--ink-4)" }
+                  }
+                >
+                  <span className="text-xs font-cond font-bold leading-none">{item.day}</span>
+                  <div className="flex items-center justify-center gap-1 mt-1.5" style={{ height: 6 }}>
+                    {isPt && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+                    )}
+                    {isPersonal && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+                    )}
+                    {!isPt && !isPersonal && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.1)" }} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 저번 주 비교 */}
+        <div className="pt-card flex items-center justify-between gap-3" style={{ padding: 16 }}>
+          <span className="text-[11px] font-cond text-ink-3">저번 주 운동 참여</span>
+          <div className="flex items-center gap-2">
+            <span className="font-cond font-bold leading-none text-ink-0 tabular-nums" style={{ fontSize: 13 }}>
+              총 {attendance.prevWeekPT + attendance.prevWeekPersonal}회
+            </span>
+            <span className="text-[11px] font-cond text-ink-4 tabular-nums">
+              (수업 {attendance.prevWeekPT} · 개인 {attendance.prevWeekPersonal})
+            </span>
+            {weekDiff !== 0 && (
+              <span
+                className="flex items-center gap-0.5 text-[11px] font-cond font-bold tabular-nums"
+                style={{ color: weekDiff > 0 ? "var(--volt)" : "var(--danger)" }}
+              >
+                {weekDiff > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                {weekDiff > 0 ? "+" : ""}
+                {weekDiff}
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── 3. 출석 캘린더 ─── */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            출석 캘린더
+          </span>
+          <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+              수업
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+              개인
+            </span>
+          </div>
+        </div>
+
+        <AttendanceCalendar
+          year={calendarYear}
+          month={calendarMonth}
+          selectedDate={calendarSelectedDate}
+          onSelectDate={setCalendarSelectedDate}
+          onPrevMonth={handlePrevCalendarMonth}
+          onNextMonth={handleNextCalendarMonth}
+          records={attendanceRecords}
+          monthTotal={calendarMonthTotal}
+        />
+      </section>
+
+      {/* ─── 4. 월별/주별 출석 기록 ─── */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            출석 기록
+          </span>
+          <div
+            className="flex gap-1 p-1 rounded-xl shrink-0"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+          >
+            {(["monthly", "weekly"] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => setHistoryTab(g)}
+                className="tap-haptic px-2.5 py-1 rounded-lg text-[10px] font-cond font-bold transition-all"
+                style={
+                  historyTab === g
+                    ? { background: "rgba(255,255,255,0.10)", color: "var(--ink-0)" }
+                    : { color: "var(--ink-3)" }
+                }
+              >
+                {g === "monthly" ? "월별" : "주별"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          {/* 막대 그래프 */}
+          <div
+            className="grid grid-cols-6 gap-2 items-end"
+            style={{ height: 150, borderBottom: "1px solid rgba(255,255,255,0.07)", paddingTop: 20, paddingBottom: 12 }}
+          >
+            {activeHistory.map((item, idx) => {
+              const heightPct = Math.round((item.total / historyMax) * 100);
+              const isLast = idx === activeHistory.length - 1;
+              return (
+                <div key={item.label} className="flex flex-col items-center h-full justify-end">
+                  <span
+                    className="text-[11px] font-cond font-bold mb-1.5 leading-none tabular-nums"
+                    style={{ color: isLast ? "var(--volt)" : "var(--ink-2)" }}
+                  >
+                    {item.total}회
+                  </span>
+                  <div
+                    className="w-full flex items-end overflow-hidden"
+                    style={{ maxWidth: 26, height: 96, background: "rgba(255,255,255,0.05)", borderRadius: "8px 8px 0 0" }}
+                  >
+                    <div
+                      style={{
+                        height: `${heightPct}%`,
+                        width: "100%",
+                        background: isLast ? "var(--volt)" : "rgba(255,255,255,0.18)",
+                        borderRadius: "8px 8px 0 0",
+                      }}
+                    />
+                  </div>
+                  <span
+                    className="text-[10px] font-cond mt-2 leading-none"
+                    style={{ color: isLast ? "var(--ink-0)" : "var(--ink-4)", fontWeight: isLast ? 700 : 500 }}
+                  >
+                    {item.label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 상세 데이터 리스트 */}
+          <div className="flex flex-col gap-2.5">
+            {[...activeHistory].reverse().map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between rounded-2xl px-4 py-3"
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+              >
+                <div>
+                  <p className="text-sm font-cond font-bold text-ink-0 leading-none">
+                    {historyTab === "monthly" ? `${item.label} 누적 출석` : `${item.label} 출석`}
+                  </p>
+                  <p className="text-[11px] font-cond text-ink-3 mt-1 leading-none tabular-nums">
+                    수업 참여 <span style={{ color: "var(--volt)", fontWeight: 700 }}>{item.pt}회</span> · 개인 운동{" "}
+                    <span style={{ color: "#5BA8FF", fontWeight: 700 }}>{item.personal}회</span>
+                  </p>
+                </div>
+                <span className="font-display tabular-nums leading-none" style={{ fontSize: 18, color: "var(--ink-0)" }}>
+                  {item.total}회
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -804,7 +787,7 @@ function AttendanceCalendar({
           <span className="font-display tabular-nums leading-none" style={{ fontSize: 20, color: "var(--ink-0)" }}>
             {year}.{String(month).padStart(2, "0")}
           </span>
-          <span className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700">
+          <span className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 tabular-nums">
             총 {monthTotal}회 출석
           </span>
         </div>

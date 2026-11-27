@@ -182,16 +182,9 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
   return (
     <div className="flex flex-col gap-4">
       {/* 헤더 */}
-      <div className="flex items-end justify-between gap-3">
-        <div className="flex flex-col gap-2">
-          <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
-            SUPPORT EXERCISES
-          </span>
-          <p className="text-[11px] font-cond text-ink-3 leading-none">
-            보조 종목 성장 순위 리포트
-          </p>
-        </div>
-      </div>
+      <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+        보조 종목
+      </span>
 
       {/* 상체 / 하체 세그먼트 컨트롤 */}
       <div
