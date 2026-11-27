@@ -94,6 +94,13 @@ function getGrade(
   return "Poor";
 }
 
+/* BODY TREND 차트의 지표별 한글 라벨·단위·소수점 자릿수 (툴팁/Y축 표기 공용) */
+const TREND_META: Record<"skeletal_muscle_kg" | "body_fat_pct" | "weight_kg", { label: string; unit: string; decimals: number }> = {
+  skeletal_muscle_kg: { label: "골격근량", unit: "kg", decimals: 1 },
+  body_fat_pct: { label: "체지방률", unit: "%", decimals: 1 },
+  weight_kg: { label: "체중", unit: "kg", decimals: 1 },
+};
+
 const GRADE_TOP_PCT: Record<ACSMGrade, string> = {
   Elite: "상위 20%",
   Good: "상위 20~40%",
@@ -108,12 +115,12 @@ function buildTrendPhrase(muscleDelta: number | null, fatDelta: number | null): 
   const fatUp = fatDelta != null && fatDelta > 0;
   const fatDown = fatDelta != null && fatDelta < 0;
 
-  if (muscleUp && fatDown) return "근육이 늘고 체지방이 줄고 있어요";
-  if (fatUp && muscleDown) return "체지방이 늘고 근육이 줄고 있어요";
-  if (muscleUp) return "근육이 늘고 있어요";
+  if (muscleUp && fatDown) return "근육량이 늘고 체지방이 줄고 있어요";
+  if (fatUp && muscleDown) return "체지방이 늘고 근육량이 줄고 있어요";
+  if (muscleUp) return "근육량이 늘고 있어요";
   if (fatDown) return "체지방이 줄고 있어요";
   if (fatUp) return "체지방이 늘고 있어요";
-  if (muscleDown) return "근육이 줄고 있어요";
+  if (muscleDown) return "근육량이 줄고 있어요";
   return "변화가 크지 않아요";
 }
 
@@ -357,10 +364,10 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
             {/* 추이 차트 — 선택 지표와 무관하게 항상 단일 볼트 컬러 라인 */}
             <ResponsiveContainer width="100%" height={176}>
-              <AreaChart data={trendHistory} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
+              <AreaChart data={trendHistory} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
                 <defs>
                   <linearGradient id="bodyTrendGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={VOLT} stopOpacity={0.28} />
+                    <stop offset="0%" stopColor={VOLT} stopOpacity={0.24} />
                     <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
                   </linearGradient>
                 </defs>
@@ -369,30 +376,37 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                   tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard, sans-serif" }}
                   axisLine={false}
                   tickLine={false}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
                 />
                 <YAxis
                   domain={["dataMin - 1", "dataMax + 1"]}
                   tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard, sans-serif" }}
+                  tickFormatter={(v: number) => v.toFixed(TREND_META[trendMetric].decimals)}
+                  tickCount={4}
+                  width={34}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
-                  contentStyle={{
-                    backgroundColor: "rgba(8,8,8,0.95)",
-                    border: "1px solid #333",
-                    borderRadius: 10,
-                    fontFamily: "Pretendard, sans-serif",
-                    fontSize: 12,
-                  }}
+                  cursor={{ stroke: "rgba(255,255,255,0.14)", strokeWidth: 1 }}
+                  content={
+                    <BodyTrendTooltip
+                      metricLabel={TREND_META[trendMetric].label}
+                      unit={TREND_META[trendMetric].unit}
+                      decimals={TREND_META[trendMetric].decimals}
+                    />
+                  }
                 />
                 <Area
                   type="monotone"
                   dataKey={trendMetric}
                   stroke={VOLT}
-                  strokeWidth={2.5}
+                  strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#bodyTrendGlow)"
-                  dot={{ r: 3.5, fill: VOLT, stroke: "#080808", strokeWidth: 2 }}
+                  dot={{ r: 3, fill: VOLT, stroke: "#080808", strokeWidth: 1.5 }}
+                  activeDot={{ r: 5, fill: VOLT, stroke: "#080808", strokeWidth: 2 }}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -510,11 +524,22 @@ function TrendTab({
       className="tap-haptic p-2.5 rounded-2xl text-left transition-all"
       style={
         active
-          ? { background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)" }
+          ? { background: "rgba(211,255,82,0.07)", border: "1px solid var(--volt-glow-2)" }
           : { background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }
       }
     >
-      <span className="text-[10px] font-cond font-bold text-ink-3 block leading-none">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span
+          className="w-1.5 h-1.5 rounded-full shrink-0"
+          style={{ background: active ? "var(--volt)" : "var(--ink-4)" }}
+        />
+        <span
+          className="text-[10px] font-cond font-bold leading-none"
+          style={{ color: active ? "var(--ink-0)" : "var(--ink-3)" }}
+        >
+          {label}
+        </span>
+      </div>
       <div className="flex items-baseline justify-between mt-1 gap-1">
         <span className="font-mono-num font-extrabold text-ink-0 text-sm leading-none tabular-nums">
           {value != null ? value : "—"}{unit}
@@ -526,6 +551,43 @@ function TrendTab({
         )}
       </div>
     </button>
+  );
+}
+
+/* BODY TREND 커스텀 툴팁 — DB 컬럼명 노출 없이 한글 지표명 + 단위로 표기 */
+function BodyTrendTooltip({
+  active, payload, label, metricLabel, unit, decimals,
+}: {
+  active?: boolean;
+  payload?: { value: number }[];
+  label?: string;
+  metricLabel: string;
+  unit: string;
+  decimals: number;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const raw = payload[0].value;
+  const value = typeof raw === "number" ? raw.toFixed(decimals) : raw;
+
+  return (
+    <div
+      style={{
+        background: "rgba(8,8,8,0.95)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 10,
+        padding: "8px 12px",
+      }}
+    >
+      <p className="font-cond text-[10px] text-ink-3 tabular-nums leading-none" style={{ marginBottom: 4 }}>
+        {label}
+      </p>
+      <p className="font-cond text-ink-0 leading-none" style={{ fontSize: 13 }}>
+        {metricLabel}{" "}
+        <span className="font-mono-num font-bold tabular-nums" style={{ color: "var(--volt)" }}>
+          {value}{unit}
+        </span>
+      </p>
+    </div>
   );
 }
 
