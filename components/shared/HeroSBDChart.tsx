@@ -188,8 +188,8 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
     <div className="flex flex-col gap-5">
       <div className="flex items-end justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <h3 className="font-display text-xl text-ink-0 tracking-wide leading-none uppercase">
-            HERO CHART — SBD
+          <h3 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            3대 운동 추이
           </h3>
           <p className="text-[11px] font-cond text-ink-3 leading-none">
             스쿼트 · 데드리프트 · 벤치프레스 1RM 추이

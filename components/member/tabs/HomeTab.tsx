@@ -126,21 +126,21 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
 
       {/* ─── 4. 캘린더 ─── */}
       <section className="flex flex-col gap-4">
-        <h2 className="flex items-center gap-2" style={{ fontSize: 18 }}>
-          <span
-            className="rounded-full shrink-0"
-            style={{
-              width: 6,
-              height: 14,
-              background: "var(--volt)",
-              boxShadow: "0 0 8px var(--volt-glow-2)",
-            }}
-          />
-          <span className="font-display text-ink-0 tracking-wider">
-            SCHEDULE
-          </span>
-          <span className="font-cond text-sm text-ink-3">캘린더</span>
-        </h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            출석 캘린더
+          </h2>
+          <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
+              수업
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
+              개인
+            </span>
+          </div>
+        </div>
         <SmartCalendar
           sessions={sessions}
           recordsBySession={recordsBySession}

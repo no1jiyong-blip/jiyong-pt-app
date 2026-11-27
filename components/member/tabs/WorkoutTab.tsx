@@ -183,7 +183,7 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
 
       <TabHeader title="WORKOUT LOG" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
 
-      {/* ─── NEXT WORKOUT ─── */}
+      {/* ─── 다음 운동 ─── */}
       <NextWorkoutSection
         session={nextSession}
         records={nextSession ? (recordsBySession[nextSession.id] ?? []) : []}
@@ -195,13 +195,10 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       <section className="flex flex-col gap-3">
         {/* 섹션 헤더 */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
-              WORKOUT LOG
-            </span>
-            <span className="font-cond font-semibold text-ink-0 text-xs leading-none">개인 운동 일지</span>
-          </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none"
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
+            개인 운동 일지
+          </span>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none tabular-nums"
             style={{ background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
             {personalLogs.length}건 기록됨
           </span>
@@ -238,13 +235,10 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       {/* ─── 운동 히스토리 ─── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-cond font-bold text-ink-3 tracking-widest uppercase leading-none" style={{ fontSize: 11 }}>
-              HISTORY
-            </span>
-            <span className="font-cond font-semibold text-ink-0 text-xs leading-none">운동 히스토리</span>
-          </div>
-          <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none"
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
+            운동 히스토리
+          </span>
+          <span className="px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none tabular-nums"
             style={{ background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
             {history.length}건 완료
           </span>
@@ -307,18 +301,11 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
 }) {
   return (
     <section className="flex flex-col gap-3">
-      {/* ── 헤더: NEXT WORKOUT + D-day 배지 ── */}
+      {/* ── 헤더: 다음 운동 + D-day 배지 ── */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span
-            className="rounded-full shrink-0"
-            style={{ width: 6, height: 14, background: "var(--volt)", boxShadow: "0 0 8px var(--volt-glow-2)" }}
-          />
-          <span
-            className="font-cond font-bold text-volt tracking-widest uppercase leading-none"
-            style={{ fontSize: 12 }}
-          >
-            NEXT WORKOUT
+          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
+            다음 운동
           </span>
         </div>
         {dDay !== null && (

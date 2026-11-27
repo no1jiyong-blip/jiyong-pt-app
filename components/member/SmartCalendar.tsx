@@ -120,18 +120,6 @@ export function SmartCalendar({ sessions, recordsBySession, personalLogs }: Prop
           </div>
         </div>
 
-        {/* 범례 */}
-        <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-            수업
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-            개인
-          </span>
-        </div>
-
         {/* Day labels */}
         <div className="grid grid-cols-7 gap-1">
           {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
