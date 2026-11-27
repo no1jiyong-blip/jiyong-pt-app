@@ -60,8 +60,11 @@
   --grad-overlay: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%);
 
   --f-display: "Bebas Neue", "Impact", sans-serif;
-  --f-cond: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --f-body: "Barlow", -apple-system, system-ui, sans-serif;
+  /* Barlow Condensed/Barlow는 한글 글리프가 없어 한글은 기기마다 다른
+     시스템 폰트로 흩어졌음 — Pretendard를 앞에 둬서 한글/숫자를 통일하고,
+     라틴 문자는 그대로 Barlow 계열이 쓰이도록 유지 (문자 단위 폴백) */
+  --f-cond: "Pretendard", "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Pretendard", "Barlow", -apple-system, system-ui, sans-serif;
   --f-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
 }
 

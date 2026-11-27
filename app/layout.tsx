@@ -42,6 +42,13 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap"
           rel="stylesheet"
         />
+        {/* Pretendard — 한글 본문/라벨/버튼/탭 전용 기본 서체 (Barlow/Barlow Condensed는 한글 글리프가 없어 시스템 폰트로 흩어지는 문제 보완) */}
+        <link
+          rel="stylesheet"
+          as="style"
+          crossOrigin="anonymous"
+          href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css"
+        />
       </head>
       <body>{children}</body>
     </html>
