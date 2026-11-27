@@ -743,7 +743,9 @@ function WorkoutTab({
 
       {/* 숙제 관리 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="pink" en="WEEKLY HOMEWORK" ko="이주의 숙제 관리" />
+        <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+          이주의 숙제 관리
+        </h2>
 
         {/* 상단 결론 요약 */}
         <div className="pt-card flex items-center justify-between" style={{ padding: 20 }}>
@@ -1195,7 +1197,9 @@ function MissionTab({
       {/* 숙제 완료 현황 (이번 주) */}
       {thisWeekHomework.length > 0 && (
         <section className="flex flex-col gap-4">
-          <SectionTitle bar="pink" en="HOMEWORK STATUS" ko="이번 주 숙제 완료 현황" />
+          <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            이번 주 숙제 완료 현황
+          </h2>
           <div className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
             <div className="flex items-center justify-between">
               <p className="font-display text-volt leading-none" style={{ fontSize: 28 }}>

@@ -106,8 +106,7 @@ export function PastMissionsSection({
   return (
     <section className="flex flex-col gap-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="section-title">
-          <span className="section-bar"></span>
+        <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
           이전 숙제 내역
         </h2>
         {availableMonths.length > 1 && (

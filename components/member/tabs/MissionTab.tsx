@@ -104,8 +104,7 @@ export function MissionTab({ homework, sessions, onUpdate }: Props) {
       {/* ─── 이주의 숙제 (개별 행 배치, 감싸는 카드 없음) ─── */}
       <section className="flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="section-title">
-            <span className="section-bar"></span>
+          <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
             이주의 숙제
           </h2>
           <span className="text-xs font-cond text-ink-3">터치해서 완료 체크</span>
