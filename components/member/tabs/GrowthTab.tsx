@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dumbbell, Activity, BarChart3, TrendingUp, Scale } from "lucide-react";
+import { TrendingUp, Scale } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   type Member,
@@ -176,7 +176,7 @@ export function GrowthTab({
   const grade = useMemo(() => computeOverallGrade(overall.avg), [overall.avg]);
 
   return (
-    <div className="anim-tab-slide flex flex-col gap-7 pt-2 pb-32">
+    <div className="anim-tab-slide flex flex-col gap-7 pt-2 pb-36">
       <Confetti trigger={confettiKey} count={32} />
 
       {/* 헤더 */}
@@ -220,15 +220,9 @@ export function GrowthTab({
           {/* ② 3대 운동 — BIG 3 TOTAL + 통합 히어로 카드 */}
           <section className="px-5 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span
-                  className="rounded-full shrink-0"
-                  style={{ width: 6, height: 14, background: "var(--volt)", boxShadow: "0 0 8px var(--volt-glow-2)" }}
-                />
-                <span className="font-cond font-bold text-ink-0 tracking-widest uppercase leading-none" style={{ fontSize: 13 }}>
-                  BIG 3 TOTAL
-                </span>
-              </div>
+              <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
+                BIG 3 TOTAL
+              </span>
               {bigThreeTotal > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-cond font-bold text-ink-3">합산</span>
@@ -258,7 +252,7 @@ export function GrowthTab({
                       <span className="text-[10px] font-cond font-semibold text-ink-3 truncate">{ex.name}</span>
                       {change !== null && change !== 0 && (
                         <span
-                          className="font-mono-num font-bold text-[9px] px-1 rounded shrink-0"
+                          className="font-mono-num font-bold text-[9px] px-1 rounded shrink-0 tabular-nums"
                           style={{ color: ex.color, background: `${ex.color}1A` }}
                         >
                           {change > 0 ? "+" : ""}{change}kg
@@ -532,62 +526,31 @@ function SegmentControl({
   value: SubTab;
   onChange: (v: SubTab) => void;
 }) {
-  const ITEMS: {
-    key: SubTab;
-    icon: typeof Dumbbell;
-    label: string;
-    sub: string;
-  }[] = [
-    { key: "strength", icon: Dumbbell, label: "STRENGTH", sub: "근력" },
-    { key: "body", icon: Activity, label: "BODY", sub: "체성분" },
-    { key: "analysis", icon: BarChart3, label: "ANALYSIS", sub: "분석" },
+  const ITEMS: { key: SubTab; label: string }[] = [
+    { key: "strength", label: "근력" },
+    { key: "body", label: "체성분" },
+    { key: "analysis", label: "출석" },
   ];
 
   return (
     <div
-      className="flex p-1.5 gap-1.5 rounded-2xl"
-      style={{
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        boxShadow: "inset 0 1px 3px rgba(0,0,0,0.4)",
-      }}
+      className="flex p-1 gap-1 rounded-xl"
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
     >
-      {ITEMS.map(({ key, icon: Icon, label, sub }) => {
+      {ITEMS.map(({ key, label }) => {
         const active = value === key;
         return (
           <button
             key={key}
             onClick={() => onChange(key)}
-            className="tap-haptic flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl transition-all"
+            className="tap-haptic flex-1 py-2.5 rounded-lg transition-all font-cond font-bold text-sm"
             style={
               active
-                ? {
-                    background: "rgba(255,255,255,0.09)",
-                    boxShadow:
-                      "0 1px 4px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)",
-                  }
-                : {}
+                ? { background: "rgba(255,255,255,0.09)", color: "var(--ink-0)" }
+                : { color: "var(--ink-3)" }
             }
           >
-            <div className="flex items-center gap-1.5">
-              <Icon
-                size={13}
-                strokeWidth={active ? 2.5 : 2}
-                style={{ color: active ? "var(--volt)" : "var(--ink-3)" }}
-              />
-              <span
-                className="font-cond font-bold text-[11px] tracking-wider leading-none"
-                style={{ color: active ? "var(--ink-0)" : "var(--ink-3)" }}
-              >
-                {label}
-              </span>
-            </div>
-            <span
-              className="text-[9px] font-cond leading-none"
-              style={{ color: active ? "var(--ink-2)" : "var(--ink-4)" }}
-            >
-              {sub}
-            </span>
+            {label}
           </button>
         );
       })}

@@ -994,9 +994,9 @@ function WorkoutTab({
         )}
       </section>
 
-      {/* 출석 캘린더 + 활동 리포트 + 성장 캐릭터 진단 (회원 GROWTH·ANALYSIS 탭과 동일 데이터) */}
+      {/* 출석 캘린더 + 활동 리포트 + 성장 캐릭터 진단 (회원 GROWTH·출석 탭과 동일 데이터) */}
       <section className="flex flex-col gap-6">
-        <SectionTitle bar="blue" en="ATTENDANCE & ANALYSIS" ko="출석 및 활동 분석 (회원 ANALYSIS 탭과 동일)" />
+        <SectionTitle bar="none" en="ATTENDANCE & ANALYSIS" ko="출석 및 활동 분석 (회원 '출석' 탭과 동일)" />
         <AnalysisInsights
           member={member}
           sessions={sessions}
@@ -1008,7 +1008,7 @@ function WorkoutTab({
       {/* 근력 성장 전체 대시보드 */}
       {sessions.some((s) => s.status === "completed") && (
         <section className="flex flex-col gap-6">
-          <SectionTitle bar="volt" en="STRENGTH DASHBOARD" ko="회원 근력 성장 전체 현황" />
+          <SectionTitle bar="none" en="STRENGTH DASHBOARD" ko="회원 근력 성장 전체 현황" />
 
           {/* ① 밸런스 레이더 */}
           <div
@@ -1420,10 +1420,11 @@ function BodyTab({
    공통 서브 컴포넌트
    ════════════════════════════════════════════════════════════════ */
 
-function SectionTitle({ bar, en, ko }: { bar: "volt" | "blue" | "pink"; en: string; ko: string }) {
+function SectionTitle({ bar, en, ko }: { bar: "volt" | "blue" | "pink" | "none"; en: string; ko: string }) {
   const barEl =
     bar === "volt" ? <span className="section-bar" /> :
     bar === "blue" ? <span className="section-bar-blue" /> :
+    bar === "none" ? null :
     <span className="section-bar-pink" />;
   return (
     <div className="flex flex-col gap-1.5">
