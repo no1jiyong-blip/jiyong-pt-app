@@ -994,7 +994,7 @@ function WorkoutTab({
         )}
       </section>
 
-      {/* 출석 캘린더 + 활동 리포트 + 성장 캐릭터 진단 (회원 GROWTH·출석 탭과 동일 데이터) */}
+      {/* 활동 리포트 + 출석 추이 + 성장 캐릭터 진단 (회원 GROWTH·출석 탭과 동일 데이터, 캘린더는 홈 탭으로 통합됨) */}
       <section className="flex flex-col gap-6">
         <SectionTitle bar="none" en="ATTENDANCE & ANALYSIS" ko="출석 및 활동 분석 (회원 '출석' 탭과 동일)" />
         <AnalysisInsights

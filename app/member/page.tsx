@@ -159,6 +159,7 @@ export default function MemberDashboard() {
               member={member}
               sessions={sessions}
               recordsBySession={recordsBySession}
+              personalLogs={personalLogs}
             />
           )}
 

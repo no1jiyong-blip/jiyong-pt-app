@@ -5,8 +5,6 @@ import {
   TrendingUp,
   TrendingDown,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
 } from "lucide-react";
 import type { Session, ExerciseRecord, Member, PersonalLog } from "@/lib/types";
@@ -77,11 +75,6 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
   const now = new Date();
 
   const [historyTab, setHistoryTab] = useState<"monthly" | "weekly">("monthly");
-  const [calendarYear, setCalendarYear] = useState(now.getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(now.getMonth() + 1);
-  const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(
-    now.toISOString().slice(0, 10)
-  );
 
   /* ─── 날짜 경계 계산 ─── */
   const today = now.toISOString().slice(0, 10);
@@ -237,35 +230,6 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
       return { day: label, status: attendanceRecords[dateStr]?.type ?? null };
     });
   }, [thisWeekStart, attendanceRecords]);
-
-  /* ─── 캘린더 월 이동 ─── */
-  const handlePrevCalendarMonth = () => {
-    if (calendarMonth === 1) {
-      setCalendarYear(calendarYear - 1);
-      setCalendarMonth(12);
-    } else {
-      setCalendarMonth(calendarMonth - 1);
-    }
-    setCalendarSelectedDate(null);
-  };
-
-  const handleNextCalendarMonth = () => {
-    if (calendarMonth === 12) {
-      setCalendarYear(calendarYear + 1);
-      setCalendarMonth(1);
-    } else {
-      setCalendarMonth(calendarMonth + 1);
-    }
-    setCalendarSelectedDate(null);
-  };
-
-  const calendarMonthTotal = useMemo(() => {
-    const prefix = `${calendarYear}-${String(calendarMonth).padStart(2, "0")}`;
-    return Object.entries(attendanceRecords).reduce((acc, [date, record]) => {
-      if (!date.startsWith(prefix)) return acc;
-      return acc + (record.type === "both" ? 2 : 1);
-    }, 0);
-  }, [attendanceRecords, calendarYear, calendarMonth]);
 
   /* ─── ATTENDANCE LOG: 최근 6개월 / 최근 6주 ─── */
   const monthlyTrend = useMemo(() => {
@@ -433,92 +397,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
 
   return (
     <div className="flex flex-col gap-7">
-      {/* ─── 1. 4주 성장 진단 (결론 우선 — 가장 먼저 노출) ─── */}
-      <section className="flex flex-col gap-4">
-        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
-          4주 성장 진단
-        </span>
-
-        <div
-          className="pt-card flex flex-col gap-5"
-          style={{
-            padding: 24,
-            background: `linear-gradient(160deg, ${char.bg} 0%, rgba(20,20,20,0.85) 70%)`,
-            borderColor: char.border,
-            boxShadow: `0 0 20px ${char.bg}`,
-          }}
-        >
-          <div className="flex items-center gap-4">
-            <span
-              style={{
-                fontSize: 52,
-                filter: `drop-shadow(0 0 12px ${char.color}60)`,
-                lineHeight: 1,
-              }}
-            >
-              {char.emoji}
-            </span>
-            <div className="flex flex-col gap-2 min-w-0">
-              <div className="flex items-center gap-2">
-                <Sparkles size={12} style={{ color: char.color }} />
-                <p
-                  className="text-[10px] font-cond font-bold tracking-wide-2 uppercase leading-none"
-                  style={{ color: char.color }}
-                >
-                  4주 성장 캐릭터
-                </p>
-              </div>
-              <p
-                className="font-display uppercase leading-none"
-                style={{
-                  color: char.color,
-                  fontSize: 24,
-                  textShadow: `0 0 12px ${char.color}50`,
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {char.label}
-              </p>
-            </div>
-          </div>
-
-          {/* 수치 요약 */}
-          <div className="grid grid-cols-3 gap-2">
-            <MiniMetric
-              label="주 평균 출석"
-              value={`${allTimeAvg.weeklyAvg}회`}
-              sub="전체 운동 기준"
-              positive
-            />
-            <MiniMetric
-              label="월 평균 출석"
-              value={`${allTimeAvg.monthlyAvg}회`}
-              sub="누적 월 평균"
-              positive
-            />
-            <MiniMetric
-              label="4주 근력 성장"
-              value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
-              sub={strengthGrowth.bestEx || "—"}
-              positive={strengthGrowth.avgPct >= 0}
-              accent
-            />
-          </div>
-
-          {/* 서사 */}
-          <div
-            className="rounded-2xl p-4"
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <p className="text-sm text-ink-1 leading-relaxed">{narrative}</p>
-          </div>
-        </div>
-      </section>
-
-      {/* ─── 2. 이번 주 활동 ─── */}
+      {/* ─── 1. 이번 주 활동 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
           <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
@@ -610,37 +489,7 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
         </div>
       </section>
 
-      {/* ─── 3. 출석 캘린더 ─── */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
-            출석 캘린더
-          </span>
-          <div className="flex items-center gap-3 text-[10px] font-cond text-ink-3">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-              수업
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-              개인
-            </span>
-          </div>
-        </div>
-
-        <AttendanceCalendar
-          year={calendarYear}
-          month={calendarMonth}
-          selectedDate={calendarSelectedDate}
-          onSelectDate={setCalendarSelectedDate}
-          onPrevMonth={handlePrevCalendarMonth}
-          onNextMonth={handleNextCalendarMonth}
-          records={attendanceRecords}
-          monthTotal={calendarMonthTotal}
-        />
-      </section>
-
-      {/* ─── 4. 월별/주별 출석 기록 ─── */}
+      {/* ─── 2. 월별/주별 출석 기록 ─── */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
@@ -734,172 +583,96 @@ export function AnalysisInsights({ sessions, recordsBySession, personalLogs }: P
           </div>
         </div>
       </section>
+
+      {/* ─── 3. 4주 성장 진단 (핵심 진단 요약 — 흐름의 마지막) ─── */}
+      <section className="flex flex-col gap-4">
+        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+          4주 성장 진단
+        </span>
+
+        <div
+          className="pt-card flex flex-col gap-5"
+          style={{
+            padding: 24,
+            background: `linear-gradient(160deg, ${char.bg} 0%, rgba(20,20,20,0.85) 70%)`,
+            borderColor: char.border,
+            boxShadow: `0 0 20px ${char.bg}`,
+          }}
+        >
+          <div className="flex items-center gap-4">
+            <span
+              style={{
+                fontSize: 52,
+                filter: `drop-shadow(0 0 12px ${char.color}60)`,
+                lineHeight: 1,
+              }}
+            >
+              {char.emoji}
+            </span>
+            <div className="flex flex-col gap-2 min-w-0">
+              <div className="flex items-center gap-2">
+                <Sparkles size={12} style={{ color: char.color }} />
+                <p
+                  className="text-[10px] font-cond font-bold tracking-wide-2 uppercase leading-none"
+                  style={{ color: char.color }}
+                >
+                  4주 성장 캐릭터
+                </p>
+              </div>
+              <p
+                className="font-display uppercase leading-none"
+                style={{
+                  color: char.color,
+                  fontSize: 24,
+                  textShadow: `0 0 12px ${char.color}50`,
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                {char.label}
+              </p>
+            </div>
+          </div>
+
+          {/* 수치 요약 */}
+          <div className="grid grid-cols-3 gap-2">
+            <MiniMetric
+              label="주 평균 출석"
+              value={`${allTimeAvg.weeklyAvg}회`}
+              sub="전체 운동 기준"
+              positive
+            />
+            <MiniMetric
+              label="월 평균 출석"
+              value={`${allTimeAvg.monthlyAvg}회`}
+              sub="누적 월 평균"
+              positive
+            />
+            <MiniMetric
+              label="4주 근력 성장"
+              value={`${strengthGrowth.avgPct >= 0 ? "+" : ""}${strengthGrowth.avgPct}%`}
+              sub={strengthGrowth.bestEx || "—"}
+              positive={strengthGrowth.avgPct >= 0}
+              accent
+            />
+          </div>
+
+          {/* 서사 */}
+          <div
+            className="rounded-2xl p-4"
+            style={{
+              background: "rgba(255,255,255,0.03)",
+              border: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <p className="text-sm text-ink-1 leading-relaxed">{narrative}</p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
 /* ─── 서브 컴포넌트들 ──────────────────────────────── */
-
-function AttendanceCalendar({
-  year,
-  month,
-  selectedDate,
-  onSelectDate,
-  onPrevMonth,
-  onNextMonth,
-  records,
-  monthTotal,
-}: {
-  year: number;
-  month: number;
-  selectedDate: string | null;
-  onSelectDate: (date: string) => void;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  records: Record<string, AttendanceRecord>;
-  monthTotal: number;
-}) {
-  const calendarCells = useMemo(() => {
-    const firstDayOfWeek = new Date(year, month - 1, 1).getDay();
-    const daysInMonth = new Date(year, month, 0).getDate();
-
-    const cells: ({ day: number; dateStr: string; record: AttendanceRecord | null } | null)[] = [];
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      cells.push(null);
-    }
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      cells.push({ day, dateStr, record: records[dateStr] ?? null });
-    }
-    return cells;
-  }, [year, month, records]);
-
-  const selectedRecord = selectedDate ? records[selectedDate] ?? null : null;
-
-  return (
-    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-      {/* 상단 연월 & 누적 뱃지 & 월 이동 버튼 */}
-      <div
-        className="flex items-center justify-between pb-4"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}
-      >
-        <div className="flex items-center gap-2.5">
-          <span className="font-display tabular-nums leading-none" style={{ fontSize: 20, color: "var(--ink-0)" }}>
-            {year}.{String(month).padStart(2, "0")}
-          </span>
-          <span className="text-[10px] font-cond font-bold px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-100 border border-zinc-700 tabular-nums">
-            총 {monthTotal}회 출석
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onPrevMonth}
-            aria-label="이전 달"
-            className="tap-haptic w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "var(--ink-3)" }}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            type="button"
-            onClick={onNextMonth}
-            aria-label="다음 달"
-            className="tap-haptic w-8 h-8 rounded-full flex items-center justify-center"
-            style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", color: "var(--ink-3)" }}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 text-center">
-        {["일", "월", "화", "수", "목", "금", "토"].map((d, i) => (
-          <span
-            key={d}
-            className={`text-[11px] font-cond ${
-              i === 0 ? "text-rose-400" : i === 6 ? "text-sky-400" : "text-ink-3"
-            }`}
-          >
-            {d}
-          </span>
-        ))}
-      </div>
-
-      {/* 날짜 그리드 */}
-      <div className="grid grid-cols-7 gap-y-2 text-center">
-        {calendarCells.map((cell, idx) => {
-          if (!cell) {
-            return <div key={`empty-${idx}`} className="h-11" />;
-          }
-
-          const { day, dateStr, record } = cell;
-          const isSelected = selectedDate === dateStr;
-
-          return (
-            <div key={dateStr} className="flex items-center justify-center">
-              <button
-                type="button"
-                onClick={() => onSelectDate(dateStr)}
-                className="tap-haptic w-11 h-11 rounded-xl flex flex-col items-center justify-center transition-all text-zinc-200"
-                style={
-                  isSelected
-                    ? { background: "rgba(211,255,82,0.10)", border: "1px solid var(--volt)", color: "var(--volt)" }
-                    : { border: "1px solid transparent" }
-                }
-              >
-                <span className="text-sm font-cond font-bold leading-none">{day}</span>
-                <div className="flex items-center justify-center gap-1 mt-1" style={{ height: 6 }}>
-                  {record?.type === "pt" && (
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-                  )}
-                  {record?.type === "personal" && (
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-                  )}
-                  {record?.type === "both" && (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--volt)", boxShadow: "0 0 6px var(--volt)" }} />
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#5BA8FF", boxShadow: "0 0 6px #5BA8FF" }} />
-                    </>
-                  )}
-                </div>
-              </button>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 선택 날짜 상세 기록 바 */}
-      <div className="pt-3.5" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
-        {selectedDate ? (
-          selectedRecord ? (
-            <div className="flex items-center gap-2">
-              <span
-                className="text-[10px] font-cond font-bold px-2 py-0.5 rounded shrink-0"
-                style={
-                  selectedRecord.type === "personal"
-                    ? { background: "rgba(91,168,255,0.15)", color: "#5BA8FF" }
-                    : { background: "rgba(211,255,82,0.15)", color: "var(--volt)" }
-                }
-              >
-                {selectedDate.slice(5).replace("-", "/")}
-              </span>
-              <span className="text-xs font-cond text-ink-1 truncate">{selectedRecord.title}</span>
-            </div>
-          ) : (
-            <p className="text-xs font-cond text-ink-4">
-              {selectedDate.slice(5).replace("-", "/")} · 등록된 운동 기록이 없습니다
-            </p>
-          )
-        ) : (
-          <p className="text-xs font-cond text-ink-4">날짜를 선택하면 상세 운동 내역을 확인할 수 있습니다</p>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function MiniMetric({
   label,

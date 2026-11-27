@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
-import type { Member, Session, ExerciseRecord } from "@/lib/types";
+import type { Member, Session, ExerciseRecord, PersonalLog } from "@/lib/types";
 import { getTodayISO, MONTH_ABBR, DAY_NAME_KO } from "@/lib/utils";
 import { SmartCalendar } from "@/components/member/SmartCalendar";
 import { TabHeader } from "@/components/member/TabHeader";
@@ -11,9 +11,10 @@ interface Props {
   member: Member;
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
+  personalLogs: PersonalLog[];
 }
 
-export function HomeTab({ member, sessions, recordsBySession }: Props) {
+export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Props) {
   const today = getTodayISO();
   const remaining = member.total_sessions - member.used_sessions;
   const used = member.used_sessions;
@@ -143,6 +144,7 @@ export function HomeTab({ member, sessions, recordsBySession }: Props) {
         <SmartCalendar
           sessions={sessions}
           recordsBySession={recordsBySession}
+          personalLogs={personalLogs}
         />
       </section>
 
