@@ -166,14 +166,17 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
             border: "1px solid rgba(211,255,82,0.2)",
           }}
         >
-          {/* 상단 라벨 + D-Day */}
+          {/* 상단 메타 한 줄 + D-Day */}
           <div className="flex items-center justify-between gap-3">
             <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
-              {nextSession.session_number ? `${nextSession.session_number}회차 · ` : ""}1:1 PT
+              {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
+              {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
+              {nextSession.time ? ` · ${nextSession.time}` : ""}
+              {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
             </span>
             {dDay !== null && (
               <span
-                className="font-mono-num font-extrabold tabular-nums leading-none"
+                className="font-mono-num font-extrabold tabular-nums leading-none shrink-0"
                 style={{ fontSize: 16, color: "var(--volt)" }}
               >
                 {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
@@ -181,7 +184,7 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
             )}
           </div>
 
-          {/* 운동 컨셉 — 카드의 메인 타이틀 */}
+          {/* 운동 컨셉 — 카드의 단독 메인 타이틀 */}
           <h3
             className="font-extrabold text-ink-0 leading-tight truncate"
             style={{ fontSize: 28, letterSpacing: "-0.02em" }}
@@ -189,24 +192,17 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
             {nextSession.title || "PT 수업"}
           </h3>
 
-          {/* 일정 */}
-          <p className="text-sm font-cond font-semibold text-ink-2 leading-none tabular-nums">
-            {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
-            {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
-            {nextSession.time ? ` · ${nextSession.time}` : ""}
-          </p>
-
-          {/* 예정 종목 — 세트·무게·횟수는 현장에서 바뀌는 경우가 많아 종목명만 가볍게 안내 */}
+          {/* 예정 종목 — 긴 문장형 종목명도 자연스럽게 줄바꿈되는 무채색 텍스트 행 리스트 */}
           {plannedExerciseNames.length > 0 && (
-            <div className="flex flex-wrap gap-2 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              {plannedExerciseNames.map((name) => (
-                <span
+            <div className="flex flex-col pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              {plannedExerciseNames.map((name, i) => (
+                <p
                   key={name}
-                  className="px-3 py-1.5 rounded-xl text-xs font-cond font-semibold text-ink-1"
-                  style={{ background: "#1E1E1E" }}
+                  className="text-sm font-cond font-semibold text-ink-1 leading-snug py-2"
+                  style={i > 0 ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : undefined}
                 >
                   {name}
-                </span>
+                </p>
               ))}
             </div>
           )}
