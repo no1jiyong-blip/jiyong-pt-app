@@ -172,20 +172,19 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
               </span>
             </div>
 
-            {/* 세션 정보 */}
+            {/* 세션 정보 — 그날의 운동 컨셉(제목)을 대표로 노출 */}
             <div className="flex-1 min-w-0 flex flex-col gap-1">
               <p className="text-[11px] font-cond font-bold text-volt tracking-wider uppercase leading-none">
                 1:1 PERSONAL TRAINING
               </p>
-              <p className="font-bold text-ink-0 text-base leading-snug">
+              <p className="font-bold text-ink-0 text-base leading-snug truncate">
+                {nextSession.title || "PT 수업"}
+              </p>
+              <p className="text-xs text-ink-3 font-cond leading-none tabular-nums">
                 {nextSession.time && `${nextSession.time} · `}
                 {DAY_NAME_KO[new Date(nextSession.date).getDay()]}
+                {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
               </p>
-              {nextSession.session_number && (
-                <p className="text-xs text-ink-3 font-cond leading-none">
-                  Session {nextSession.session_number}
-                </p>
-              )}
             </div>
 
             {/* D-Day 뱃지 */}
@@ -205,17 +204,21 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
 
           {/* 예정 종목 — 세트·무게·횟수는 현장에서 바뀌는 경우가 많아 종목명만 가볍게 안내 */}
           {plannedExerciseNames.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1.5 pt-3" style={{ borderTop: "1px solid var(--pt-5)" }}>
-              <span className="text-[10px] font-cond font-bold text-ink-3 mr-0.5">예정 종목</span>
-              {plannedExerciseNames.map((name) => (
-                <span
-                  key={name}
-                  className="px-2.5 py-1 rounded-full text-xs font-cond font-semibold leading-none"
-                  style={{ background: "rgba(211,255,82,0.08)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
-                >
-                  {name}
-                </span>
-              ))}
+            <div className="flex flex-col gap-1.5 pt-3" style={{ borderTop: "1px solid var(--pt-5)" }}>
+              <span className="text-[10px] font-cond font-bold text-ink-3">예정 종목</span>
+              <div className="flex flex-col gap-1.5">
+                {plannedExerciseNames.map((name, i) => (
+                  <div key={name} className="flex items-center gap-2.5">
+                    <span
+                      className="font-mono-num font-bold tabular-nums shrink-0 text-right"
+                      style={{ fontSize: 11, color: "var(--volt)", width: 14 }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="text-xs font-cond font-semibold text-ink-1 truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </section>

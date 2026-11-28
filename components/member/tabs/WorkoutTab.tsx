@@ -112,7 +112,9 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       items.push({
         id: `pt-${s.id}`, type: "pt", date: s.date,
         title: s.title || "PT 수업",
-        subtitle: `${s.session_number ?? "?"}회차  ·  ${s.time ?? ""}`,
+        subtitle: [s.session_number ? `${s.session_number}회차` : null, s.time || null]
+          .filter(Boolean)
+          .join("  ·  "),
         totalSets: recs.reduce((a, r) => a + (r.sets ?? 0), 0),
         exercises: recs.map(r => ({ name: r.exercise_name, sets: r.sets ?? 0, reps: r.reps ?? 0, weight: r.weight })),
         feedback: s.feedback,
@@ -581,19 +583,10 @@ function HistoryCard({ item }: { item: HItem }) {
             {item.exercises.map((ex, i) => (
               <div key={i} className="flex items-center justify-between py-2 px-3 rounded-xl"
                 style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: "var(--ink-4)" }} />
-                  <span className="font-bold text-ink-0 text-xs truncate">{ex.name}</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-mono-num text-ink-3" style={{ fontSize: 11 }}>{ex.sets}세트 × {ex.reps}회</span>
-                  {ex.weight && (
-                    <span className="font-mono-num font-bold leading-none"
-                      style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)", borderRadius: 8, padding: "3px 7px", fontSize: 10 }}>
-                      @{ex.weight}kg
-                    </span>
-                  )}
-                </div>
+                <span className="font-bold text-ink-0 text-xs truncate">{ex.name}</span>
+                <span className="font-mono-num text-ink-3 tabular-nums shrink-0" style={{ fontSize: 11 }}>
+                  {ex.sets}세트 · {ex.reps}회{ex.weight ? ` · ${ex.weight}kg` : ""}
+                </span>
               </div>
             ))}
           </div>
