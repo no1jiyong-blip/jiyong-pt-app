@@ -407,8 +407,8 @@ function QuickLogCard({
             type="button"
             onClick={handleAttend}
             disabled={saving}
-            className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm"
-            style={{ height: 52, background: "var(--volt)", color: "#000" }}
+            className="w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm transition-transform duration-150 active:scale-[0.98] bg-[#D3FF52]/15 border border-[#D3FF52]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+            style={{ height: 52, color: "var(--volt)" }}
           >
             {saving && <Loader2 size={16} className="animate-spin" />}
             네, 출석할게요
