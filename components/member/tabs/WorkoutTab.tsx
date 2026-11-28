@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import {
   Plus, X, Copy, Trophy, Loader2, Dumbbell, Minus,
-  ChevronDown, Check,
+  ChevronDown, ChevronRight, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -400,6 +400,9 @@ function QuickLogCard({
     <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
       {step === "attend" && (
         <>
+          <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
+            {new Date(today).getMonth() + 1}월 {new Date(today).getDate()}일 ({DAYS[new Date(today).getDay()]})
+          </span>
           <p className="font-bold text-ink-0 leading-snug" style={{ fontSize: 17 }}>
             오늘 운동하러 오셨나요?
           </p>
@@ -407,11 +410,14 @@ function QuickLogCard({
             type="button"
             onClick={handleAttend}
             disabled={saving}
-            className="w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm transition-transform duration-150 active:scale-[0.98] bg-[#D3FF52]/15 border border-[#D3FF52]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]"
+            className="w-full rounded-2xl flex items-center justify-between px-5 font-cond font-bold text-sm transition-transform duration-150 active:scale-[0.98] bg-gradient-to-b from-[#D3FF52]/18 to-[#D3FF52]/06 border border-[#D3FF52]/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
             style={{ height: 52, color: "var(--volt)" }}
           >
-            {saving && <Loader2 size={16} className="animate-spin" />}
-            네, 출석할게요
+            <span className="flex items-center gap-2">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
+              네, 출석할게요
+            </span>
+            <ChevronRight size={16} strokeWidth={2.5} className="opacity-70" />
           </button>
         </>
       )}
