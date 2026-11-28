@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, Scale } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   type Member,
@@ -12,7 +11,7 @@ import {
   calcOneRM,
   getAgeGroup,
 } from "@/lib/types";
-import { computeOneRMProgress, computeTrainingVolumeTons, computeTier, computeOverallGrade } from "@/lib/growth";
+import { computeOneRMProgress } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
 import { HeroSBDChart } from "@/components/shared/HeroSBDChart";
@@ -155,13 +154,6 @@ export function GrowthTab({
     if (!p?.first || !p?.latest) return sum;
     return sum + (p.latest.orm - p.first.orm);
   }, 0);
-  const volumeTons = useMemo(
-    () => computeTrainingVolumeTons(sessions, recordsBySession),
-    [sessions, recordsBySession]
-  );
-  const tier = useMemo(() => computeTier(overall.avg), [overall.avg]);
-  const grade = useMemo(() => computeOverallGrade(overall.avg), [overall.avg]);
-
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2 pb-36">
       <Confetti trigger={confettiKey} count={32} />
@@ -171,22 +163,6 @@ export function GrowthTab({
         <TabHeader title="GROWTH REPORT" subtitle="데이터로 증명되는 당신의 발전" />
       </div>
 
-      {/* TOTAL STRENGTH RANK */}
-      {overall.valid && (
-        <div className="px-5">
-          <TotalStrengthRank
-            topPct={overall.topPct}
-            percentile={overall.avg}
-            gender={member.gender}
-            ageGroup={ageGroup}
-            tier={tier}
-            grade={grade}
-            totalGainKg={totalGainKg}
-            volumeTons={volumeTons}
-          />
-        </div>
-      )}
-
       {/* 서브탭 세그먼트 컨트롤 */}
       <div className="px-5">
         <SegmentControl value={subTab} onChange={setSubTab} />
@@ -195,7 +171,18 @@ export function GrowthTab({
       {/* ─── STRENGTH 탭 ─── */}
       {subTab === "strength" && (
         <div className="flex flex-col gap-8">
-          {/* ① 3대 운동 핵심 결론 — 합계 + 통합 히어로 카드 (가장 먼저 노출) */}
+          {/* ① 근력 수준 결론 요약 — 근력 탭 전용 */}
+          {overall.valid && (
+            <div className="px-5">
+              <StrengthSummary
+                topPct={overall.topPct}
+                percentile={overall.avg}
+                totalGainKg={totalGainKg}
+              />
+            </div>
+          )}
+
+          {/* ② 3대 운동 핵심 결론 — 합계 + 통합 히어로 카드 */}
           <section className="px-5 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
@@ -299,7 +286,7 @@ export function GrowthTab({
             </div>
           </section>
 
-          {/* ② 보조 종목 */}
+          {/* ③ 보조 종목 */}
           <div className="px-5">
             <SupportCarousel
               sessions={sessions}
@@ -334,165 +321,60 @@ export function GrowthTab({
   );
 }
 
-/* ── Total Strength Rank ── */
-function TotalStrengthRank({
+/* ── 근력 수준 결론 요약 (근력 탭 전용) ── */
+function StrengthSummary({
   topPct,
   percentile,
-  gender,
-  ageGroup,
-  tier,
-  grade,
   totalGainKg,
-  volumeTons,
 }: {
   topPct: number;
   percentile: number;
-  gender: "male" | "female" | null;
-  ageGroup: ReturnType<typeof getAgeGroup>;
-  tier: { label: string; sub: "I" | "II" };
-  grade: string;
   totalGainKg: number;
-  volumeTons: number;
 }) {
-  const demoLabel =
-    gender && ageGroup
-      ? `South Korea · ${gender === "male" ? "Males" : "Females"} · ${ageGroup}`
-      : "";
-  const glowDensity = topPct <= 5 ? 1 : topPct <= 25 ? 0.7 : 0.4;
-
   return (
     <div
-      className="pt-card flex flex-col gap-5 relative overflow-hidden"
+      className="pt-card flex flex-col gap-3"
       style={{
-        padding: 22,
-        background: `linear-gradient(160deg, rgba(211,255,82,${0.07 + glowDensity * 0.05}) 0%, rgba(20,20,20,0.88) 60%)`,
+        padding: 20,
+        background: "linear-gradient(160deg, rgba(211,255,82,0.07) 0%, rgba(20,20,20,0.88) 65%)",
         borderColor: "var(--volt-glow-2)",
-        boxShadow: `0 0 ${16 + glowDensity * 22}px rgba(211,255,82,${0.1 + glowDensity * 0.14})`,
       }}
     >
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(211,255,82,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(211,255,82,0.04) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-          opacity: 0.5,
-        }}
-      />
-      <div className="flex items-start justify-between gap-3 relative z-10">
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] font-cond font-bold text-volt tracking-wide-2 uppercase leading-none">
-            TOTAL STRENGTH RANK
-          </p>
-          <div className="flex items-center gap-1.5">
-            <p className="font-cond font-bold text-ink-0 text-sm leading-none">
-              {tier.label} {tier.sub}
-            </p>
-            <span
-              className="font-cond font-bold px-1.5 py-0.5 rounded text-[10px] leading-none uppercase"
-              style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
-            >
-              GRADE {grade}
-            </span>
-          </div>
-        </div>
-        {demoLabel && (
-          <span
-            className="text-[10px] font-cond text-ink-3 leading-none"
-            style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid var(--pt-6)",
-              borderRadius: 999,
-              padding: "4px 10px",
-            }}
-          >
-            {demoLabel}
-          </span>
-        )}
-      </div>
-      <p
-        className="font-display leading-none tabular-nums relative z-10"
-        style={{
-          fontSize: "clamp(56px, 14vw, 84px)",
-          color: "var(--volt)",
-          letterSpacing: "-0.025em",
-          textShadow: `0 0 ${20 + glowDensity * 18}px rgba(211,255,82,${0.32 + glowDensity * 0.32})`,
-        }}
-      >
-        TOP {topPct}%
-      </p>
-      <div className="relative z-10 flex flex-col gap-2">
-        <div
-          className="w-full rounded-full relative overflow-visible"
-          style={{
-            height: 11,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid var(--pt-5)",
-          }}
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="font-cond font-bold text-ink-0" style={{ fontSize: 14 }}>
+          근력 수준
+        </span>
+        <span
+          className="font-display tabular-nums leading-none"
+          style={{ fontSize: 32, color: "var(--volt)", textShadow: "0 0 14px var(--volt-glow-2)" }}
         >
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${percentile}%`,
-              background: "var(--grad-volt-bar)",
-              boxShadow: "0 0 12px var(--volt-glow-2)",
-              transition: "width 0.7s ease",
-            }}
-          />
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 anim-pulse"
-            style={{ left: `${percentile}%` }}
-          >
-            <div
-              className="rounded-full"
-              style={{
-                width: 15,
-                height: 15,
-                background: "var(--volt)",
-                border: "2px solid #000",
-                boxShadow: "0 0 10px rgba(211,255,82,0.9)",
-              }}
-            />
-          </div>
-        </div>
-        <div className="flex justify-between text-[9px] font-cond text-ink-4 leading-none tracking-wider">
-          <span>NOVICE</span>
-          <span>BEGINNER</span>
-          <span>INTERMEDIATE</span>
-          <span>ADVANCED</span>
-          <span className="text-volt font-bold">ELITE</span>
-        </div>
+          TOP {topPct}%
+        </span>
       </div>
-
-      {/* 누적 2대 핵심 메트릭 */}
-      {(totalGainKg > 0 || volumeTons > 0) && (
-        <div className="grid grid-cols-2 gap-3 pt-4 relative z-10" style={{ borderTop: "1px solid rgba(211,255,82,0.15)" }}>
-          <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="flex items-center gap-1.5 mb-1 text-ink-3">
-              <TrendingUp size={11} />
-              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">3대 운동 총 증량</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-mono-num font-extrabold text-volt" style={{ fontSize: 22, textShadow: "0 0 8px var(--volt-glow-2)" }}>
-                +{totalGainKg}
-              </span>
-              <span className="text-xs font-cond font-bold text-ink-3">KG</span>
-            </div>
-          </div>
-          <div className="rounded-2xl p-4" style={{ background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <div className="flex items-center gap-1.5 mb-1 text-ink-3">
-              <Scale size={11} />
-              <span className="text-[9px] font-cond font-bold uppercase tracking-wider">누적 훈련 볼륨</span>
-            </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 22 }}>
-                {volumeTons}
-              </span>
-              <span className="text-xs font-cond font-bold text-ink-3">TON</span>
-            </div>
-          </div>
-        </div>
-      )}
+      <p className="text-xs text-ink-1 leading-relaxed">
+        3대 운동 기준 상위{" "}
+        <span className="font-bold" style={{ color: "var(--volt)" }}>
+          {topPct}%
+        </span>{" "}
+        수준이며, 등록 대비{" "}
+        <span className="font-bold" style={{ color: "var(--volt)" }}>
+          {totalGainKg > 0 ? "+" : ""}{totalGainKg}kg
+        </span>{" "}
+        성장했습니다.
+      </p>
+      <div
+        className="w-full rounded-full overflow-hidden"
+        style={{ height: 6, background: "rgba(255,255,255,0.06)" }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${percentile}%`,
+            background: "var(--volt)",
+            transition: "width 0.7s ease",
+          }}
+        />
+      </div>
     </div>
   );
 }

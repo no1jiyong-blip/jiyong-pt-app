@@ -6,6 +6,7 @@ import {
   AreaChart,
   Area,
   ResponsiveContainer,
+  Tooltip,
 } from "recharts";
 import type { Session, ExerciseRecord } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
@@ -33,6 +34,9 @@ const LOWER_EXERCISES = [
 // 풀업머신은 보조 무게가 낮을수록 강함 → 역산 로직 적용
 const PULLUP_NAMES = ["풀업머신", "풀업"];
 
+/* 세션별 수행 내역 기본 노출 건수 — 나머지는 "전체 기록 보기"로 펼침 */
+const LOG_PREVIEW_COUNT = 5;
+
 interface Props {
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
@@ -53,7 +57,7 @@ interface ExerciseCard {
   current: number;
   growth: number;
   growthPct: number;
-  data: { date: string; val: number }[];
+  data: { date: string; val: number; actualWeight: number; reps: number }[];
   isReverse: boolean;
   lastDate: string;
   streak: number;
@@ -167,7 +171,12 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
           current: Math.round(current),
           growth,
           growthPct,
-          data: sessionMax.map((p) => ({ date: p.date, val: p.val })),
+          data: sessionMax.map((p) => ({
+            date: p.date,
+            val: p.val,
+            actualWeight: p.actualWeight,
+            reps: p.reps,
+          })),
           isReverse,
           lastDate: sessionMax[sessionMax.length - 1]?.rawDate ?? "",
           streak,
@@ -251,8 +260,10 @@ function SupportRow({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const [showAllLogs, setShowAllLogs] = useState(false);
   const gradId = `sg-${card.name.replace(/\s/g, "_").replace(/[^\w]/g, "")}`;
   const unit = card.isReverse ? "pt" : "kg";
+  const visibleLogs = showAllLogs ? card.logs : card.logs.slice(0, LOG_PREVIEW_COUNT);
 
   return (
     <div
@@ -321,6 +332,10 @@ function SupportRow({
                       <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
                     </linearGradient>
                   </defs>
+                  <Tooltip
+                    content={(props) => <SparkTooltip {...props} isReverse={card.isReverse} />}
+                    cursor={{ stroke: VOLT, strokeOpacity: 0.25 }}
+                  />
                   <Area
                     type="monotone"
                     dataKey="val"
@@ -328,6 +343,7 @@ function SupportRow({
                     strokeWidth={2.5}
                     fill={`url(#${gradId})`}
                     dot={{ r: 3.5, fill: VOLT, stroke: "#000", strokeWidth: 1.5 }}
+                    activeDot={{ r: 6, fill: VOLT, stroke: "#000", strokeWidth: 2 }}
                     isAnimationActive={false}
                   />
                 </AreaChart>
@@ -340,29 +356,75 @@ function SupportRow({
             <p className="text-[10px] font-cond font-bold text-ink-3">
               세션별 실제 수행 내역 ({card.logs.length}회)
             </p>
-            {card.logs.map((log, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between rounded-xl px-3 py-2 text-xs"
-                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
-              >
-                <span className="text-ink-3 font-cond font-semibold">{log.date}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono-num font-bold text-ink-0">
-                    {log.actualWeight}kg × {log.reps}회
-                  </span>
-                  <span
-                    className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full"
-                    style={{ background: "rgba(211,255,82,0.1)", color: VOLT }}
-                  >
-                    {card.isReverse ? `점수 ${log.scoreKg}pt` : `1RM ${log.scoreKg}kg`}
-                  </span>
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--pt-5)" }}>
+              {visibleLogs.map((log, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between px-3 py-2.5 text-xs"
+                  style={idx > 0 ? { borderTop: "1px solid rgba(255,255,255,0.05)" } : undefined}
+                >
+                  <span className="text-ink-3 font-cond font-semibold">{log.date}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono-num font-bold text-ink-0 tabular-nums">
+                      {log.actualWeight}kg × {log.reps}회
+                    </span>
+                    <span
+                      className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full tabular-nums"
+                      style={{ background: "rgba(211,255,82,0.1)", color: VOLT }}
+                    >
+                      {card.isReverse ? `점수 ${log.scoreKg}pt` : `1RM ${log.scoreKg}kg`}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {card.logs.length > LOG_PREVIEW_COUNT && (
+              <button
+                type="button"
+                onClick={() => setShowAllLogs((v) => !v)}
+                className="tap-haptic text-[11px] font-cond font-bold text-ink-3 text-center py-1.5"
+              >
+                {showAllLogs ? "접기" : `전체 기록 보기 (${card.logs.length}건)`}
+              </button>
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   스파크라인 커스텀 툴팁 — 호버/터치 시 날짜·수행 중량×횟수·추정 1RM 표시
+   ═══════════════════════════════════════════════════════════════ */
+function SparkTooltip({
+  active,
+  payload,
+  isReverse,
+}: {
+  active?: boolean;
+  payload?: { payload?: { date: string; val: number; actualWeight: number; reps: number } }[];
+  isReverse: boolean;
+}) {
+  if (!active || !payload || payload.length === 0 || !payload[0].payload) return null;
+  const row = payload[0].payload;
+
+  return (
+    <div
+      className="rounded-xl px-3 py-2"
+      style={{
+        background: "rgba(10,10,10,0.95)",
+        border: "1px solid var(--pt-6)",
+        backdropFilter: "blur(12px)",
+      }}
+    >
+      <p className="text-[10px] font-cond font-bold text-ink-3 mb-1 leading-none">{row.date}</p>
+      <p className="text-xs font-mono-num font-bold text-ink-0 tabular-nums leading-none mb-1">
+        {row.actualWeight}kg{isReverse ? " 보조" : ""} × {row.reps}회
+      </p>
+      <p className="text-[11px] font-mono-num font-bold tabular-nums leading-none" style={{ color: VOLT }}>
+        {isReverse ? `점수 ${Math.round(row.val)}pt` : `추정 1RM ${Math.round(row.val)}kg`}
+      </p>
     </div>
   );
 }
