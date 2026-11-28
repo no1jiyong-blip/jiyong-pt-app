@@ -166,17 +166,22 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
             border: "1px solid rgba(211,255,82,0.2)",
           }}
         >
-          {/* 상단 메타 한 줄 + D-Day */}
+          {/* 상단 메타 영역(라벨 + 한 줄 메타) + D-Day */}
           <div className="flex items-center justify-between gap-3">
-            <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
-              {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
-              {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
-              {nextSession.time ? ` · ${nextSession.time}` : ""}
-              {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
-            </span>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] font-cond font-semibold text-ink-4 leading-none">
+                다음 수업
+              </span>
+              <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
+                {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
+                {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
+                {nextSession.time ? ` · ${nextSession.time}` : ""}
+                {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
+              </span>
+            </div>
             {dDay !== null && (
               <span
-                className="font-mono-num font-extrabold tabular-nums leading-none shrink-0"
+                className="font-cond font-extrabold tabular-nums leading-none shrink-0"
                 style={{ fontSize: 16, color: "var(--volt)" }}
               >
                 {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
