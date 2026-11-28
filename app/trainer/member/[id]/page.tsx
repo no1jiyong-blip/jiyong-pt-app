@@ -648,7 +648,9 @@ function WorkoutTab({
     <div className="px-5 flex flex-col gap-7">
       {/* PT 수업 추가 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="volt" en="PT SESSION" ko="PT 수업 일지 관리" />
+        <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+          PT 수업 일지 관리
+        </h2>
 
         <button
           onClick={() => setShowNewSession((v) => !v)}
@@ -951,7 +953,14 @@ function WorkoutTab({
 
       {/* 개인 운동 모니터링 피드 */}
       <section className="flex flex-col gap-4">
-        <SectionTitle bar="blue" en="UNIFIED FEED" ko="운동 기록 통합 피드 (Read-only)" />
+        <div className="flex flex-col gap-1">
+          <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            운동 기록 통합 피드
+          </h2>
+          <p className="text-[11px] font-cond text-ink-3 leading-none">
+            회원이 기록한 PT·개인 운동을 모아보는 조회 전용 피드예요
+          </p>
+        </div>
 
         {feed.length === 0 ? (
           <div className="pt-card text-center py-8">

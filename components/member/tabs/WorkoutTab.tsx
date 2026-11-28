@@ -130,7 +130,7 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
       items.push({
         id: `pt-${s.id}`, type: "pt", date: s.date,
         title: s.title || "PT 수업",
-        subtitle: `SESSION ${s.session_number ?? "?"}  ·  ${s.time ?? ""}`,
+        subtitle: `${s.session_number ?? "?"}회차  ·  ${s.time ?? ""}`,
         totalSets: recs.reduce((a, r) => a + (r.sets ?? 0), 0),
         exercises: recs.map(r => ({ name: r.exercise_name, sets: r.sets ?? 0, reps: r.reps ?? 0, weight: r.weight })),
         feedback: s.feedback,
@@ -168,7 +168,7 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
   }, [sessions, recordsBySession, personalLogs, histFilter, periodStart]);
 
   return (
-    <div className="anim-tab-slide flex flex-col gap-6 px-5 pt-2">
+    <div className="anim-tab-slide flex flex-col gap-6 px-5 pt-2 pb-36">
       <Confetti trigger={confettiKey} count={70} />
       {pbExercise && (
         <div className="fixed top-6 left-1/2 z-[60] -translate-x-1/2 px-6 py-4 rounded-2xl flex items-center gap-3"
@@ -181,7 +181,7 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
         </div>
       )}
 
-      <TabHeader title="WORKOUT LOG" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
+      <TabHeader title="운동 일지" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
 
       {/* ─── 다음 운동 ─── */}
       <NextWorkoutSection
@@ -247,16 +247,15 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
         {/* 타입 필터 */}
         <div className="grid grid-cols-3 gap-1 p-1.5 rounded-2xl" style={{ background: "rgba(0,0,0,0.6)", border: "1px solid var(--pt-5)" }}>
           {([
-            ["all",      "전체보기",  null],
-            ["pt",       "PT 수업",   "var(--volt)"],
-            ["personal", "개인 운동", "#5BA8FF"],
-          ] as [HistoryFilter, string, string | null][]).map(([key, label, dot]) => (
+            ["all",      "전체보기"],
+            ["pt",       "PT 수업"],
+            ["personal", "개인 운동"],
+          ] as [HistoryFilter, string][]).map(([key, label]) => (
             <button key={key} onClick={() => setHistFilter(key)}
-              className="tap-haptic py-2.5 rounded-xl font-cond font-bold text-xs tracking-wide leading-none transition-all flex items-center justify-center gap-1.5"
+              className="tap-haptic py-2.5 rounded-xl font-cond font-bold text-xs tracking-wide leading-none transition-all flex items-center justify-center"
               style={histFilter === key
-                ? { background: "var(--pt-5)", color: key === "pt" ? "var(--volt)" : key === "personal" ? "#5BA8FF" : "var(--ink-0)" }
+                ? { background: "var(--pt-5)", color: key === "pt" ? "var(--volt)" : "var(--ink-0)" }
                 : { color: "var(--ink-3)" }}>
-              {dot && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot }} />}
               {label}
             </button>
           ))}
@@ -283,8 +282,6 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
           ? <div className="pt-card text-center py-8"><p className="text-ink-3 font-cond text-sm">운동 기록이 없습니다</p></div>
           : <div className="flex flex-col gap-2">{history.map(item => <HistoryCard key={item.id} item={item} />)}</div>}
       </section>
-
-      <div style={{ height: 20 }} />
     </div>
   );
 }
@@ -321,7 +318,7 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
               boxShadow: "0 0 10px rgba(211,255,82,0.2)",
             }}
           >
-            {dDay <= 0 ? "TODAY" : `D-${dDay}`}
+            {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
           </span>
         )}
       </div>
@@ -345,9 +342,9 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-cond font-bold text-volt tracking-wider uppercase leading-none mb-1">
-                  {isToday ? "TODAY" : "1:1 PERSONAL TRAINING"}
-                  {session.session_number && ` · SESSION ${session.session_number}`}
+                <p className="text-[10px] font-cond font-bold text-volt tracking-wider leading-none mb-1">
+                  {isToday ? "오늘" : "1:1 PT 수업"}
+                  {session.session_number && ` · ${session.session_number}회차`}
                 </p>
                 <h3 className="font-bold text-ink-0 text-lg leading-snug truncate">
                   {session.time && `${session.time} `}
@@ -404,7 +401,7 @@ function NextWorkoutSection({ session, records, isToday, dDay }: {
                   className="font-cond font-bold leading-none"
                   style={{ fontSize: 9, color: "var(--ink-3)", background: "rgba(255,255,255,0.05)", padding: "4px 7px", borderRadius: 6 }}
                 >
-                  PLANNING
+                  준비 중
                 </span>
               </div>
             )}
@@ -629,12 +626,12 @@ function ScoreRow({ label, value, onChange, dict }: {
 }) {
   const info = dict[value];
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-2">
       {/* 레이블 + 현재 점수 */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-cond text-ink-2 uppercase tracking-wider leading-none">{label}</p>
-        <span className="font-display tabular-nums leading-none" style={{ fontSize: 15, color: "var(--volt)" }}>
-          {value}<span className="text-ink-3 text-xs">/10</span>
+        <p className="text-xs font-cond font-semibold text-ink-2">{label}</p>
+        <span className="font-mono-num font-bold tabular-nums leading-none" style={{ fontSize: 13, color: "var(--volt)" }}>
+          {value}<span className="text-ink-3 text-[11px]">/10</span>
         </span>
       </div>
 
@@ -642,31 +639,22 @@ function ScoreRow({ label, value, onChange, dict }: {
       <div className="grid grid-cols-10 gap-1">
         {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
           <button key={n} onClick={() => onChange(n)}
-            className="tap-haptic rounded-lg font-display text-sm leading-none transition-all"
+            className="tap-haptic rounded-md font-mono-num text-xs tabular-nums transition-all"
             style={{
-              height: 38,
-              background: value === n ? "var(--grad-volt)" : "var(--pt-3)",
+              height: 30,
+              background: value === n ? "var(--volt)" : "var(--pt-3)",
               color: value === n ? "#000" : "var(--ink-3)",
-              border: value === n ? "none" : "1px solid var(--pt-5)",
-              boxShadow: value === n ? "0 0 10px var(--volt-glow-2)" : "none",
             }}>
             {n}
           </button>
         ))}
       </div>
 
-      {/* 설명 박스 */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-        style={{ background: "rgba(211,255,82,0.06)", border: "1px solid var(--volt-glow-2)" }}>
-        <span className="px-2.5 py-1.5 rounded-lg font-cond font-bold text-[10px] leading-none shrink-0"
-          style={{ background: "var(--grad-volt)", color: "#000" }}>
-          {info.label}
-        </span>
-        <p className="text-xs text-ink-1 leading-none">
-          <span className="font-bold text-volt">{value}점</span>
-          {" · "}{info.desc}
-        </p>
-      </div>
+      {/* 설명 한 줄 */}
+      <p className="text-[11px] text-ink-3 leading-relaxed">
+        <span className="font-bold" style={{ color: "var(--volt)" }}>{info.label}</span>
+        {" · "}{info.desc}
+      </p>
     </div>
   );
 }
@@ -707,10 +695,10 @@ function HistoryCard({ item }: { item: HItem }) {
           {/* 내용 */}
           <div className="min-w-0 flex flex-col gap-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full font-cond font-bold text-[9px] leading-none uppercase tracking-wider w-fit"
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full font-cond font-bold text-[9px] leading-none tracking-wider w-fit"
                 style={isPT
                   ? { background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }
-                  : { background: "rgba(91,168,255,0.1)", color: "#5BA8FF", border: "1px solid rgba(91,168,255,0.3)" }}>
+                  : { background: "rgba(255,255,255,0.05)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }}>
                 {isPT ? "PT 수업" : "개인 운동"}
               </span>
               <span className="font-mono-num font-bold text-ink-3 leading-none" style={{ fontSize: 10 }}>
@@ -768,7 +756,7 @@ function HistoryCard({ item }: { item: HItem }) {
           {(item.rpe || item.condScore) && (
             <div className="flex gap-4 px-1">
               {item.rpe && <span className="text-[10px] font-cond text-ink-3">RPE <b className="text-volt">{item.rpe}</b></span>}
-              {item.condScore && <span className="text-[10px] font-cond text-ink-3">컨디션 <b style={{ color: "#5BA8FF" }}>{item.condScore}</b></span>}
+              {item.condScore && <span className="text-[10px] font-cond text-ink-3">컨디션 <b className="text-ink-0">{item.condScore}</b></span>}
             </div>
           )}
           {item.feedback && (
