@@ -18,6 +18,9 @@ import { hapticTick } from "@/lib/utils";
 
 const VOLT = "#D3FF52";
 
+/* 세션별 수행 내역 기본 노출 건수 — 나머지는 "전체 기록 보기"로 펼침 (SupportCarousel과 동일 기준) */
+const LOG_PREVIEW_COUNT = 5;
+
 interface Props {
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
@@ -237,6 +240,7 @@ type SBDRow = ChartItem["data"][number];
 function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) {
   const [activeRow, setActiveRow] = useState<SBDRow | null>(null);
   const lastHapticKeyRef = useRef<string | null>(null);
+  const [showAllLogs, setShowAllLogs] = useState(false);
 
   const handleActiveMove = (state: {
     isTooltipActive?: boolean;
@@ -279,6 +283,13 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         isActual: latestRaw.isActual,
       }
     : null;
+
+  const logs = [...chart.rawPoints].reverse(); // 최신순
+  const visibleLogs = showAllLogs ? logs : logs.slice(0, LOG_PREVIEW_COUNT);
+  const formatLogDate = (label: string) => {
+    const [m, d] = label.split("/").map((v) => parseInt(v, 10));
+    return Number.isNaN(m) || Number.isNaN(d) ? label : `${m}월 ${d}일`;
+  };
 
   const body = (
     <>
@@ -428,6 +439,46 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             >
               목표까지 {chart.ghostKg - chart.current}kg 남음
             </span>
+          )}
+        </div>
+      )}
+
+      {/* 세션별 실제 수행 내역 — 보조 종목과 동일한 방식 */}
+      {logs.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[10px] font-cond font-bold text-ink-3">
+            세션별 실제 수행 내역 ({logs.length}회)
+          </p>
+          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid var(--pt-5)" }}>
+            {visibleLogs.map((log, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between px-3 py-2.5 text-xs"
+                style={idx > 0 ? { borderTop: "1px solid rgba(255,255,255,0.05)" } : undefined}
+              >
+                <span className="text-ink-3 font-cond font-semibold">{formatLogDate(log.date)}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono-num font-bold text-ink-0 tabular-nums">
+                    {log.actualWeight}kg × {log.reps}회
+                  </span>
+                  <span
+                    className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full tabular-nums"
+                    style={{ background: "rgba(211,255,82,0.1)", color: VOLT }}
+                  >
+                    1RM {log.orm}kg
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {logs.length > LOG_PREVIEW_COUNT && (
+            <button
+              type="button"
+              onClick={() => setShowAllLogs((v) => !v)}
+              className="tap-haptic text-[11px] font-cond font-bold text-ink-3 text-center py-1.5"
+            >
+              {showAllLogs ? "접기" : `전체 기록 보기 (${logs.length}건)`}
+            </button>
           )}
         </div>
       )}
