@@ -155,58 +155,59 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
         />
       </section>
 
-      {/* ─── 5. 다음 수업 ─── */}
+      {/* ─── 5. 다음 수업 — 메인 하이라이트 카드 ─── */}
       {nextSession && (
-        <section className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
-          <div className="flex items-start justify-between gap-3">
-            {/* 세션 정보 — 그날의 운동 컨셉(제목)을 가장 뚜렷하게 노출 */}
-            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-              <span className="text-[10px] font-cond font-bold text-ink-3 tracking-wider leading-none">
-                1:1 PT 수업
-              </span>
-              <h3 className="font-bold text-ink-0 leading-snug truncate" style={{ fontSize: 20 }}>
-                {nextSession.title || "PT 수업"}
-              </h3>
-              <p className="text-xs text-ink-3 font-cond leading-none tabular-nums">
-                {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
-                {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
-                {nextSession.time ? ` · ${nextSession.time}` : ""}
-                {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
-              </p>
-            </div>
-
-            {/* D-Day 뱃지 */}
+        <section
+          className="flex flex-col gap-4"
+          style={{
+            padding: 22,
+            borderRadius: 24,
+            background: "linear-gradient(160deg, rgba(211,255,82,0.07) 0%, #141414 65%)",
+            border: "1px solid rgba(211,255,82,0.2)",
+          }}
+        >
+          {/* 상단 라벨 + D-Day */}
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
+              {nextSession.session_number ? `${nextSession.session_number}회차 · ` : ""}1:1 PT
+            </span>
             {dDay !== null && (
               <span
-                className="font-mono-num font-bold px-3 py-1.5 rounded-full text-xs leading-none shrink-0 tabular-nums"
-                style={{
-                  background: "rgba(211,255,82,0.1)",
-                  color: "var(--volt)",
-                  border: "1px solid var(--volt-glow-2)",
-                }}
+                className="font-mono-num font-extrabold tabular-nums leading-none"
+                style={{ fontSize: 16, color: "var(--volt)" }}
               >
                 {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
               </span>
             )}
           </div>
 
+          {/* 운동 컨셉 — 카드의 메인 타이틀 */}
+          <h3
+            className="font-extrabold text-ink-0 leading-tight truncate"
+            style={{ fontSize: 28, letterSpacing: "-0.02em" }}
+          >
+            {nextSession.title || "PT 수업"}
+          </h3>
+
+          {/* 일정 */}
+          <p className="text-sm font-cond font-semibold text-ink-2 leading-none tabular-nums">
+            {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
+            {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
+            {nextSession.time ? ` · ${nextSession.time}` : ""}
+          </p>
+
           {/* 예정 종목 — 세트·무게·횟수는 현장에서 바뀌는 경우가 많아 종목명만 가볍게 안내 */}
           {plannedExerciseNames.length > 0 && (
-            <div className="flex flex-col gap-1.5 pt-3" style={{ borderTop: "1px solid var(--pt-5)" }}>
-              <span className="text-[10px] font-cond font-bold text-ink-3">예정 종목</span>
-              <div className="flex flex-col gap-1">
-                {plannedExerciseNames.map((name, i) => (
-                  <div key={name} className="flex items-baseline gap-2.5">
-                    <span
-                      className="font-mono-num tabular-nums shrink-0 text-right text-ink-4"
-                      style={{ fontSize: 11, width: 14 }}
-                    >
-                      {i + 1}
-                    </span>
-                    <span className="text-xs font-cond font-semibold text-ink-1 truncate">{name}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="flex flex-wrap gap-2 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+              {plannedExerciseNames.map((name) => (
+                <span
+                  key={name}
+                  className="px-3 py-1.5 rounded-xl text-xs font-cond font-semibold text-ink-1"
+                  style={{ background: "#1E1E1E" }}
+                >
+                  {name}
+                </span>
+              ))}
             </div>
           )}
         </section>
