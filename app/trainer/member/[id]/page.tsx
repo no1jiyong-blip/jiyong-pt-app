@@ -1027,27 +1027,17 @@ function WorkoutTab({
           {/* ② 1RM 리포트 카드 (성별별 3대) */}
           {(() => {
             const SBD = member.gender === "female"
-              ? [
-                  { name: "스쿼트",   color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-                  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-                  { name: "숄더프레스", color: "#ff8c00", glow: "rgba(255,140,0,0.5)" },
-                ]
-              : [
-                  { name: "스쿼트",   color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-                  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-                  { name: "벤치프레스", color: "#E8E8E8", glow: "rgba(232,232,232,0.4)" },
-                ];
+              ? ["스쿼트", "데드리프트", "숄더프레스"]
+              : ["스쿼트", "데드리프트", "벤치프레스"];
             return (
               <div className="flex flex-col gap-3">
                 <p className="text-[10px] font-cond text-ink-3 uppercase tracking-wider leading-none">
                   1RM 리포트 (Brzycki 공식)
                 </p>
-                {SBD.map((ex) => (
+                {SBD.map((name) => (
                   <OneRMReportCard
-                    key={ex.name}
-                    exerciseName={ex.name}
-                    color={ex.color}
-                    glow={ex.glow}
+                    key={name}
+                    exerciseName={name}
                     sessions={sessions}
                     recordsBySession={recordsBySession}
                     startDate={member.session_start_date}

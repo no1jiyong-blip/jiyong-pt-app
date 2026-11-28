@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Flame, Clock, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -10,6 +10,8 @@ import {
 import type { Session, ExerciseRecord } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const VOLT = "#D3FF52";
 
 /* ─── 상체 / 하체 보조 종목 목록 ─── */
 const UPPER_EXERCISES = [
@@ -47,7 +49,6 @@ interface SupportLog {
 
 interface ExerciseCard {
   name: string;
-  color: string;
   start: number;
   current: number;
   growth: number;
@@ -70,7 +71,7 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
     (ex) => !excludeNames.includes(ex)
   );
 
-  /* ─── 종목별 카드 데이터 계산 ─── */
+  /* ─── 종목별 데이터 계산 ─── */
   const cards: ExerciseCard[] = useMemo(() => {
     const completed = sessions
       .filter((s) => s.status === "completed")
@@ -162,7 +163,6 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
 
         return {
           name: ex,
-          color: tab === "upper" ? "#94a3b8" : "#7dd3fc",
           start: Math.round(start),
           current: Math.round(current),
           growth,
@@ -217,20 +217,17 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
         ))}
       </div>
 
-      {/* 성장률 랭킹 리스트 (1열 풀 너비) */}
+      {/* 종목 리스트 — 통카드 (divide-y) */}
       {cards.length === 0 ? (
         <div className="pt-card text-center py-6">
           <p className="text-ink-3 font-cond text-sm">해당 종목 기록이 없습니다</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {/* key={card.name} — React 고유 번호표 */}
-          {cards.map((card, i) => (
-            <SupportRankCard
+        <div className="pt-card" style={{ padding: 4 }}>
+          {cards.map((card) => (
+            <SupportRow
               key={card.name}
-              rank={i + 1}
               card={card}
-              category={tab}
               expanded={expandedName === card.name}
               onToggle={() => setExpandedName((prev) => (prev === card.name ? null : card.name))}
             />
@@ -242,174 +239,128 @@ export function SupportCarousel({ sessions, recordsBySession, excludeNames = [] 
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   단일 랭킹 카드 컴포넌트 — TOP N 뱃지 + 시작➔현재 서사 + 와이드 스파크라인
-   + 세션별 실제 수행 내역 아코디언
+   종목 한 행 — 접힌 상태: 종목명 · 현재 기록 · 변화율만
+   펼친 상태: 스파크라인 + 세션별 실제 수행 내역
    ═══════════════════════════════════════════════════════════════ */
-function SupportRankCard({
-  rank,
+function SupportRow({
   card,
-  category,
   expanded,
   onToggle,
 }: {
-  rank: number;
   card: ExerciseCard;
-  category: "upper" | "lower";
   expanded: boolean;
   onToggle: () => void;
 }) {
-  // linearGradient id — 카드별로 고유하게 (한글 종목명 → ASCII 변환)
   const gradId = `sg-${card.name.replace(/\s/g, "_").replace(/[^\w]/g, "")}`;
   const unit = card.isReverse ? "pt" : "kg";
 
   return (
-    <div className="pt-card flex flex-col gap-3" style={{ padding: 18 }}>
-      {/* 상단: 순위/카테고리/성장률 + 종목명 ↔ 연속 갱신 뱃지 */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            <span
-              className="font-mono-num font-extrabold px-2 py-0.5 rounded-full text-[10px] leading-none shrink-0"
-              style={
-                rank === 1
-                  ? { background: "var(--volt)", color: "#000" }
-                  : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }
-              }
-            >
-              TOP {rank}
-            </span>
-            <span className="text-[10px] font-cond font-bold text-ink-3">
-              {category === "upper" ? "상체" : "하체"}
-            </span>
-            {card.growthPct !== 0 && (
-              <span
-                className="font-mono-num font-bold px-1.5 py-0.5 rounded text-[9px] leading-none"
-                style={{
-                  background: card.growthPct > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
-                  color: card.growthPct > 0 ? card.color : "#ff8080",
-                }}
-              >
-                {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
-              </span>
-            )}
-          </div>
-          <p className="font-bold text-ink-0 text-sm truncate">
-            {card.isReverse ? "⬆ " : ""}{card.name}
-          </p>
-        </div>
-
-        {card.streak >= 2 ? (
-          <span
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-cond font-bold leading-none shrink-0 whitespace-nowrap"
-            style={{ background: "rgba(255,140,0,0.1)", color: "var(--warn)", border: "1px solid rgba(255,140,0,0.25)" }}
-          >
-            <Flame size={11} className="shrink-0" />
-            {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
-          </span>
-        ) : (
-          <span className="text-[9px] font-cond text-ink-4 leading-none shrink-0 whitespace-nowrap pt-1">
-            최근 갱신 {card.lastDate.slice(5)}
-          </span>
-        )}
-      </div>
-
-      {/* 시작 ➔ 현재 서사 */}
-      <div
-        className="flex items-baseline gap-1.5 flex-wrap rounded-2xl px-3 py-2.5"
-        style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
-      >
-        <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
-        <span className="text-ink-4 text-[11px]">➔</span>
-        <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 18 }}>
-          {card.current}
-        </span>
-        <span className="text-[10px] font-cond font-bold text-ink-4">{unit}</span>
-        {card.growth !== 0 && (
-          <span
-            className="font-mono-num font-bold ml-auto px-2 py-0.5 rounded-md"
-            style={{
-              fontSize: 11,
-              color: card.growth > 0 ? card.color : "#ff8080",
-              background: card.growth > 0 ? `${card.color}1A` : "rgba(255,80,80,0.1)",
-              border: `1px solid ${card.growth > 0 ? card.color : "#ff8080"}40`,
-            }}
-          >
-            {card.growth > 0 ? "+" : ""}{card.growth}{unit} {card.growth > 0 ? "성장 달성" : "조정"}
-          </span>
-        )}
-      </div>
-
-      {/* 와이드 스파크라인 차트 */}
-      <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
-        <div className="flex items-center justify-between text-[10px] font-cond font-bold text-ink-3 mb-1 px-0.5">
-          <span>최근 증량 궤적</span>
-          <span style={{ color: card.color }}>최고 {card.current}{unit}</span>
-        </div>
-        <div className="w-full" style={{ height: 96 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
-              <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={card.color} stopOpacity={0.4} />
-                  <stop offset="100%" stopColor={card.color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="val"
-                stroke={card.color}
-                strokeWidth={2.5}
-                fill={`url(#${gradId})`}
-                dot={{ r: 3.5, fill: card.color, stroke: "#000", strokeWidth: 1.5 }}
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* 세션별 실제 수행 내역 아코디언 토글 */}
+    <div
+      style={{ borderTop: "1px solid var(--pt-5)" }}
+      className="first:border-t-0"
+    >
       <button
         type="button"
         onClick={onToggle}
-        className="tap-haptic w-full flex items-center justify-between py-1 px-0.5"
+        className="tap-haptic w-full flex items-center justify-between gap-3 px-3.5 py-3.5"
       >
-        <div className="flex items-center gap-1.5">
-          <Clock size={13} style={{ color: card.color }} />
-          <span className="text-xs font-cond font-bold text-ink-3">
-            세션별 실제 수행 상세 내역 ({card.logs.length}회 기록)
+        <span className="text-sm font-bold text-ink-0 truncate text-left">
+          {card.isReverse ? "⬆ " : ""}{card.name}
+        </span>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <span className="font-mono-num font-extrabold tabular-nums text-ink-0" style={{ fontSize: 15 }}>
+            {card.current}
+            <span className="text-[10px] font-cond font-bold text-ink-4 ml-0.5">{unit}</span>
           </span>
+          {card.growthPct !== 0 && (
+            <span
+              className="font-mono-num font-bold px-1.5 py-0.5 rounded text-[10px] leading-none tabular-nums"
+              style={{
+                color: card.growthPct > 0 ? VOLT : "var(--ink-3)",
+                background: card.growthPct > 0 ? "rgba(211,255,82,0.1)" : "rgba(255,255,255,0.05)",
+              }}
+            >
+              {card.growthPct > 0 ? "+" : ""}{card.growthPct}%
+            </span>
+          )}
+          {expanded ? (
+            <ChevronUp size={15} className="text-ink-3" />
+          ) : (
+            <ChevronDown size={15} className="text-ink-3" />
+          )}
         </div>
-        {expanded ? (
-          <ChevronUp size={15} className="text-ink-3" />
-        ) : (
-          <ChevronDown size={15} className="text-ink-3" />
-        )}
       </button>
 
-      {/* 펼쳐지는 세부 기록 리스트 */}
       {expanded && (
-        <div className="flex flex-col gap-1.5 pt-1" style={{ borderTop: "1px solid var(--pt-5)" }}>
-          {card.logs.map((log, idx) => (
-            <div
-              key={idx}
-              className="flex items-center justify-between rounded-xl px-3 py-2 text-xs"
-              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
-            >
-              <span className="text-ink-3 font-cond font-semibold">{log.date}</span>
-              <div className="flex items-center gap-2">
-                <span className="font-mono-num font-bold text-ink-0">
-                  {log.actualWeight}kg × {log.reps}회
-                </span>
-                <span
-                  className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full"
-                  style={{ background: `${card.color}1A`, color: card.color }}
-                >
-                  {card.isReverse ? `점수 ${log.scoreKg}pt` : `1RM ${log.scoreKg}kg`}
-                </span>
-              </div>
+        <div className="px-3.5 pb-4 flex flex-col gap-3">
+          {/* 시작 → 현재 */}
+          <div
+            className="flex items-baseline gap-1.5 flex-wrap rounded-2xl px-3 py-2.5"
+            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
+          >
+            <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
+            <span className="text-ink-4 text-[11px]">➔</span>
+            <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 15 }}>
+              {card.current}{unit}
+            </span>
+            {card.streak >= 2 && (
+              <span className="text-[10px] font-cond font-bold text-ink-3 ml-auto">
+                {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
+              </span>
+            )}
+          </div>
+
+          {/* 스파크라인 */}
+          <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
+            <div className="w-full" style={{ height: 88 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
+                  <defs>
+                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={VOLT} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="val"
+                    stroke={VOLT}
+                    strokeWidth={2.5}
+                    fill={`url(#${gradId})`}
+                    dot={{ r: 3.5, fill: VOLT, stroke: "#000", strokeWidth: 1.5 }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
-          ))}
+          </div>
+
+          {/* 세션별 실제 수행 내역 */}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[10px] font-cond font-bold text-ink-3">
+              세션별 실제 수행 내역 ({card.logs.length}회)
+            </p>
+            {card.logs.map((log, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-xl px-3 py-2 text-xs"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.05)" }}
+              >
+                <span className="text-ink-3 font-cond font-semibold">{log.date}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono-num font-bold text-ink-0">
+                    {log.actualWeight}kg × {log.reps}회
+                  </span>
+                  <span
+                    className="font-mono-num font-bold text-[10px] px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(211,255,82,0.1)", color: VOLT }}
+                  >
+                    {card.isReverse ? `점수 ${log.scoreKg}pt` : `1RM ${log.scoreKg}kg`}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -8,7 +8,6 @@ import {
   type Session,
   type ExerciseRecord,
   type BenchmarkData,
-  type SessionQuality,
   type PersonalLog,
   calcOneRM,
   getAgeGroup,
@@ -16,7 +15,6 @@ import {
 import { computeOneRMProgress, computeTrainingVolumeTons, computeTier, computeOverallGrade } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
 import { Confetti } from "@/components/shared/Confetti";
-import { MuscleBalanceRadar } from "@/components/shared/MuscleBalanceRadar";
 import { HeroSBDChart } from "@/components/shared/HeroSBDChart";
 import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { OneRMReportCard } from "@/components/shared/OneRMReportCard";
@@ -33,16 +31,17 @@ interface Props {
 type SubTab = "strength" | "body" | "analysis";
 
 /* ─── 성별별 3대 운동 설정 ─── */
-const MALE_SBD = [
-  { name: "스쿼트", color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-  { name: "벤치프레스", color: "#E8E8E8", glow: "rgba(232,232,232,0.4)" },
-];
-const FEMALE_SBD = [
-  { name: "스쿼트", color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-  { name: "숄더프레스", color: "#ff8c00", glow: "rgba(255,140,0,0.5)" },
-];
+const MALE_SBD = ["스쿼트", "데드리프트", "벤치프레스"];
+const FEMALE_SBD = ["스쿼트", "데드리프트", "숄더프레스"];
+
+/* 선택 종목 등급(ACSM 벤치마크) 한글 라벨 */
+const LEVEL_LABEL: Record<string, string> = {
+  NOVICE: "입문",
+  BEGINNER: "초급",
+  INTERMEDIATE: "중급",
+  ADVANCED: "상급",
+  ELITE: "엘리트",
+};
 
 export function GrowthTab({
   member,
@@ -52,12 +51,11 @@ export function GrowthTab({
 }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("strength");
   const [benchmarks, setBenchmarks] = useState<BenchmarkData[]>([]);
-  const [qualities, setQualities] = useState<SessionQuality[]>([]);
   const [confettiKey, setConfettiKey] = useState(0);
 
   const ageGroup = getAgeGroup(member.birth_date);
   const sbdConfig = member.gender === "female" ? FEMALE_SBD : MALE_SBD;
-  const [selectedEx, setSelectedEx] = useState(sbdConfig[0].name);
+  const [selectedEx, setSelectedEx] = useState(sbdConfig[0]);
 
   /* 데이터 로드 */
   useEffect(() => {
@@ -70,19 +68,8 @@ export function GrowthTab({
           .eq("age_group", ageGroup);
         setBenchmarks((data ?? []) as BenchmarkData[]);
       }
-
-      const completedIds = sessions
-        .filter((s) => s.status === "completed")
-        .map((s) => s.id);
-      if (completedIds.length > 0) {
-        const { data } = await supabase
-          .from("session_quality")
-          .select("*")
-          .in("session_id", completedIds);
-        setQualities((data ?? []) as SessionQuality[]);
-      }
     })();
-  }, [member.gender, ageGroup, sessions]);
+  }, [member.gender, ageGroup]);
 
   /* 진입 시 컨페티 1회 */
   useEffect(() => {
@@ -106,7 +93,7 @@ export function GrowthTab({
       });
 
     const percentiles: number[] = [];
-    sbdConfig.forEach(({ name }) => {
+    sbdConfig.forEach((name) => {
       const my = myMax.get(name) ?? 0;
       if (my <= 0) return;
       const bench = benchmarks.find((b) => b.exercise_name === name);
@@ -150,20 +137,20 @@ export function GrowthTab({
     return "NOVICE";
   }, [overall.myMax, benchmarks, selectedEx]);
 
-  /* 3대 운동 종목별 진행 상황 (BIG 3 TOTAL 그리드 + 등록 대비 총 증량에 사용) */
+  /* 3대 운동 종목별 진행 상황 (3대 운동 합계 그리드 + 등록 대비 총 증량에 사용) */
   const liftProgress = useMemo(() => {
     const map = new Map<string, ReturnType<typeof computeOneRMProgress>>();
-    sbdConfig.forEach(({ name }) => {
+    sbdConfig.forEach((name) => {
       map.set(name, computeOneRMProgress(name, sessions, recordsBySession));
     });
     return map;
   }, [sbdConfig, sessions, recordsBySession]);
 
   const bigThreeTotal = sbdConfig.reduce(
-    (sum, { name }) => sum + (liftProgress.get(name)?.latest?.orm ?? 0),
+    (sum, name) => sum + (liftProgress.get(name)?.latest?.orm ?? 0),
     0
   );
-  const totalGainKg = sbdConfig.reduce((sum, { name }) => {
+  const totalGainKg = sbdConfig.reduce((sum, name) => {
     const p = liftProgress.get(name);
     if (!p?.first || !p?.latest) return sum;
     return sum + (p.latest.orm - p.first.orm);
@@ -208,124 +195,116 @@ export function GrowthTab({
       {/* ─── STRENGTH 탭 ─── */}
       {subTab === "strength" && (
         <div className="flex flex-col gap-8">
-          {/* ① 3대 운동 핵심 결론 — BIG 3 TOTAL + 통합 히어로 카드 (가장 먼저 노출) */}
+          {/* ① 3대 운동 핵심 결론 — 합계 + 통합 히어로 카드 (가장 먼저 노출) */}
           <section className="px-5 flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
-                BIG 3 TOTAL
+                3대 운동 합계
               </span>
               {bigThreeTotal > 0 && (
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-cond font-bold text-ink-3">합산</span>
-                  <span className="font-mono-num font-extrabold text-volt text-base">{bigThreeTotal} KG</span>
+                  <span className="font-mono-num font-extrabold text-volt text-base tabular-nums">{bigThreeTotal}kg</span>
+                  {totalGainKg !== 0 && (
+                    <span className="font-mono-num font-bold text-[11px] text-ink-3 tabular-nums">
+                      (누적 {totalGainKg > 0 ? "+" : ""}{totalGainKg}kg)
+                    </span>
+                  )}
                 </div>
               )}
             </div>
 
-            {/* 종목 선택 그리드 — 종목명 + 현재 중량 + 전 기록 대비 변화 */}
+            {/* 종목 선택 — 무채색 세그먼트 */}
             <div className="grid grid-cols-3 gap-2.5">
-              {sbdConfig.map((ex) => {
-                const active = selectedEx === ex.name;
-                const p = liftProgress.get(ex.name);
+              {sbdConfig.map((name) => {
+                const active = selectedEx === name;
+                const p = liftProgress.get(name);
                 const change = p?.latest && p?.previous ? p.latest.orm - p.previous.orm : null;
                 return (
                   <button
-                    key={ex.name}
-                    onClick={() => setSelectedEx(ex.name)}
+                    key={name}
+                    onClick={() => setSelectedEx(name)}
                     className="tap-haptic p-3 rounded-2xl text-left transition-all"
                     style={
                       active
-                        ? { background: "var(--pt-2)", border: `1px solid ${ex.color}80`, boxShadow: `0 0 14px ${ex.color}26` }
+                        ? { background: "rgba(211,255,82,0.07)", border: "1px solid var(--volt-glow-2)" }
                         : { background: "var(--pt-1)", border: "1px solid var(--pt-5)" }
                     }
                   >
                     <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="text-[10px] font-cond font-semibold text-ink-3 truncate">{ex.name}</span>
+                      <span className="text-[10px] font-cond font-semibold text-ink-3 truncate">{name}</span>
                       {change !== null && change !== 0 && (
                         <span
                           className="font-mono-num font-bold text-[9px] px-1 rounded shrink-0 tabular-nums"
-                          style={{ color: ex.color, background: `${ex.color}1A` }}
+                          style={{
+                            color: change > 0 ? "var(--volt)" : "var(--ink-3)",
+                            background: change > 0 ? "rgba(211,255,82,0.1)" : "rgba(255,255,255,0.05)",
+                          }}
                         >
                           {change > 0 ? "+" : ""}{change}kg
                         </span>
                       )}
                     </div>
                     <div className="flex items-baseline gap-0.5">
-                      <span className="font-mono-num font-extrabold" style={{ fontSize: 18, color: active ? ex.color : "var(--ink-0)" }}>
+                      <span
+                        className="font-mono-num font-extrabold tabular-nums"
+                        style={{ fontSize: 18, color: active ? "var(--volt)" : "var(--ink-0)" }}
+                      >
                         {p?.latest?.orm ?? 0}
                       </span>
-                      <span className="text-[9px] font-cond font-bold text-ink-4">KG</span>
+                      <span className="text-[9px] font-cond font-bold text-ink-4">kg</span>
                     </div>
                   </button>
                 );
               })}
             </div>
 
-            {/* 통합 히어로 카드 */}
-            {(() => {
-              const cfg = sbdConfig.find((e) => e.name === selectedEx)!;
-              return (
-                <div
-                  className="pt-card flex flex-col gap-5"
-                  style={{
-                    padding: 22,
-                    background: `linear-gradient(160deg, ${cfg.color}10 0%, rgba(20,20,20,0.88) 65%)`,
-                    borderColor: `${cfg.color}30`,
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: cfg.color, boxShadow: `0 0 10px ${cfg.glow}` }} />
-                      <span className="font-bold text-ink-0 text-base">{cfg.name}</span>
-                    </div>
-                    {selectedLevel && (
-                      <span
-                        className="font-mono-num font-bold px-2 py-0.5 rounded text-[11px] leading-none"
-                        style={{ background: `${cfg.color}15`, color: cfg.color, border: `1px solid ${cfg.color}40` }}
-                      >
-                        {selectedLevel}
-                      </span>
-                    )}
-                  </div>
+            {/* 통합 히어로 카드 — 핵심 수치 + 단일 라인 추이 그래프 */}
+            <div
+              className="pt-card flex flex-col gap-5"
+              style={{
+                padding: 22,
+                background: "linear-gradient(160deg, rgba(211,255,82,0.06) 0%, rgba(20,20,20,0.88) 65%)",
+                borderColor: "rgba(211,255,82,0.2)",
+              }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-bold text-ink-0 text-base">{selectedEx}</span>
+                {selectedLevel && (
+                  <span
+                    className="font-cond font-bold px-2 py-0.5 rounded text-[11px] leading-none"
+                    style={{ background: "rgba(211,255,82,0.1)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
+                  >
+                    {LEVEL_LABEL[selectedLevel] ?? selectedLevel}
+                  </span>
+                )}
+              </div>
 
-                  <OneRMReportCard
-                    exerciseName={selectedEx}
-                    color={cfg.color}
-                    glow={cfg.glow}
-                    sessions={sessions}
-                    recordsBySession={recordsBySession}
-                    startDate={member.session_start_date}
-                    goalKg={benchmarks.find((b) => b.exercise_name === selectedEx)?.advanced_kg}
-                    bare
-                  />
+              <OneRMReportCard
+                exerciseName={selectedEx}
+                sessions={sessions}
+                recordsBySession={recordsBySession}
+                startDate={member.session_start_date}
+                goalKg={benchmarks.find((b) => b.exercise_name === selectedEx)?.advanced_kg}
+                bare
+              />
 
-                  <HeroSBDChart
-                    sessions={sessions}
-                    recordsBySession={recordsBySession}
-                    benchmarks={benchmarks}
-                    gender={member.gender}
-                    only={selectedEx}
-                  />
-                </div>
-              );
-            })()}
+              <HeroSBDChart
+                sessions={sessions}
+                recordsBySession={recordsBySession}
+                benchmarks={benchmarks}
+                gender={member.gender}
+                only={selectedEx}
+              />
+            </div>
           </section>
 
-          {/* ② Muscle Balance 레이더 — 결론 다음 상세 */}
-          <div className="px-5">
-            <MuscleBalanceRadar
-              sessions={sessions}
-              recordsBySession={recordsBySession}
-              qualities={qualities}
-            />
-          </div>
-
-          {/* ③ 보조 종목 그리드 */}
+          {/* ② 보조 종목 */}
           <div className="px-5">
             <SupportCarousel
               sessions={sessions}
               recordsBySession={recordsBySession}
-              excludeNames={sbdConfig.map((e) => e.name)}
+              excludeNames={sbdConfig}
             />
           </div>
         </div>

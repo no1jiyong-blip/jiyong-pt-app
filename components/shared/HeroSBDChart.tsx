@@ -16,25 +16,19 @@ import { Trophy, Award } from "lucide-react";
 import type { Session, ExerciseRecord, BenchmarkData } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
 
+const VOLT = "#D3FF52";
+
 interface Props {
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
   benchmarks: BenchmarkData[];
   gender?: "male" | "female" | null;
-  /** 지정하면 이 종목 차트 하나만 렌더링 (헤더 없이) — GrowthTab 통합 히어로 카드용 */
+  /** 지정하면 이 종목 차트 하나만 렌더링 (헤더/하단 메트릭 없이) — GrowthTab 통합 히어로 카드용 */
   only?: string;
 }
 
-const MALE_SBD = [
-  { name: "스쿼트", color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-  { name: "벤치프레스", color: "#E8E8E8", glow: "rgba(232,232,232,0.4)" },
-] as const;
-const FEMALE_SBD = [
-  { name: "스쿼트", color: "#D3FF52", glow: "rgba(211,255,82,0.5)" },
-  { name: "데드리프트", color: "#5BA8FF", glow: "rgba(91,168,255,0.5)" },
-  { name: "숄더프레스", color: "#ff8c00", glow: "rgba(255,140,0,0.5)" },
-] as const;
+const MALE_SBD = ["스쿼트", "데드리프트", "벤치프레스"] as const;
+const FEMALE_SBD = ["스쿼트", "데드리프트", "숄더프레스"] as const;
 
 export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, only }: Props) {
   const SBD = gender === "female" ? FEMALE_SBD : MALE_SBD;
@@ -43,7 +37,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
       .filter((s) => s.status === "completed")
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    return SBD.map((ex) => {
+    return SBD.map((name) => {
       const points: {
         date: string;
         orm: number;
@@ -56,7 +50,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
 
       completed.forEach((s) => {
         const recs = (recordsBySession[s.id] ?? []).filter(
-          (r) => r.exercise_name === ex.name
+          (r) => r.exercise_name === name
         );
         if (recs.length === 0) return;
 
@@ -88,7 +82,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
       });
 
       // Ghost (advanced_kg)
-      const bench = benchmarks.find((b) => b.exercise_name === ex.name);
+      const bench = benchmarks.find((b) => b.exercise_name === name);
       const ghostKg = bench?.advanced_kg ?? null;
 
       // 미래 예측 (선형회귀)
@@ -157,7 +151,7 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
       }
 
       return {
-        ...ex,
+        name,
         data: allData,
         rawPoints: points,
         ghostKg,
@@ -225,12 +219,10 @@ function ChartTooltip({
   active,
   payload,
   label,
-  color,
 }: {
   active?: boolean;
   payload?: { dataKey?: string | number; value?: unknown; payload?: TooltipRow }[];
   label?: string;
-  color: string;
 }) {
   if (!active || !payload || payload.length === 0) return null;
   const entry =
@@ -242,7 +234,7 @@ function ChartTooltip({
   const isProjected = entry.dataKey === "proj";
   const isActual = !isProjected && row.isActual;
 
-  const badgeColor = isActual ? "#fbbf24" : color;
+  const badgeColor = isActual || isProjected ? VOLT : "var(--ink-3)";
   const badgeLabel = isProjected ? "예측" : isActual ? "실측 1RM" : "공식 추정";
 
   return (
@@ -250,7 +242,7 @@ function ChartTooltip({
       className="rounded-2xl px-4 py-3"
       style={{
         background: "rgba(10,10,10,0.95)",
-        border: `1px solid ${color}60`,
+        border: "1px solid var(--pt-6)",
         backdropFilter: "blur(12px)",
         minWidth: 170,
       }}
@@ -263,7 +255,7 @@ function ChartTooltip({
           {isProjected ? `성장 예측 (${label})` : `${label} 측정 세션`}
         </span>
         <span
-          className="text-[9px] font-cond font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0"
+          className="text-[9px] font-cond font-bold px-1.5 py-0.5 rounded-full tracking-wider shrink-0"
           style={{ background: `${badgeColor}1A`, color: badgeColor, border: `1px solid ${badgeColor}50` }}
         >
           {badgeLabel}
@@ -305,8 +297,6 @@ function ChartTooltip({
 
 interface ChartItem {
   name: string;
-  color: string;
-  glow: string;
   data: {
     date: string;
     orm: number | null;
@@ -338,22 +328,13 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
     <>
       {!bare && (
         <div className="flex items-baseline justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span
-              className="w-3 h-3 rounded-full shrink-0"
-              style={{ background: chart.color, boxShadow: `0 0 10px ${chart.glow}` }}
-            />
-            <p
-              className="font-cond font-bold uppercase tracking-wider leading-none"
-              style={{ color: chart.color, fontSize: 13 }}
-            >
-              {chart.name}
-            </p>
-          </div>
+          <p className="font-cond font-bold leading-none" style={{ color: "var(--ink-0)", fontSize: 14 }}>
+            {chart.name}
+          </p>
           {chart.current > 0 && (
             <p
               className="font-display tabular-nums leading-none"
-              style={{ fontSize: 32, color: chart.color, textShadow: `0 0 16px ${chart.glow}` }}
+              style={{ fontSize: 32, color: VOLT, textShadow: "0 0 16px rgba(211,255,82,0.5)" }}
             >
               {chart.current}
               <span className="text-ink-3 text-xs ml-1.5">kg</span>
@@ -367,26 +348,26 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         <ComposedChart data={chart.data} margin={{ top: 12, right: 8, left: -14, bottom: 0 }}>
           <defs>
             <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={chart.color} stopOpacity={0.45} />
-              <stop offset="100%" stopColor={chart.color} stopOpacity={0} />
+              <stop offset="0%" stopColor={VOLT} stopOpacity={0.2} />
+              <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
           <XAxis
             dataKey="date"
-            tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+            tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard" }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
             domain={chart.yDomain}
-            tick={{ fill: "#555", fontSize: 10, fontFamily: "Barlow Condensed" }}
+            tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard" }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip
-            content={(props) => <ChartTooltip {...props} color={chart.color} />}
-            cursor={{ stroke: chart.color, strokeOpacity: 0.25 }}
+            content={(props) => <ChartTooltip {...props} />}
+            cursor={{ stroke: VOLT, strokeOpacity: 0.25 }}
           />
           {chart.ghostKg && (
             <ReferenceLine
@@ -395,10 +376,10 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
               strokeDasharray="6 4"
               strokeWidth={1.5}
               label={{
-                value: `Goal · ${chart.ghostKg}kg`,
+                value: `목표 · ${chart.ghostKg}kg`,
                 fill: "#64748b",
                 fontSize: 9,
-                fontFamily: "Barlow Condensed",
+                fontFamily: "Pretendard",
                 position: "insideTopRight",
               }}
             />
@@ -407,7 +388,7 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
           <Area
             type="monotone"
             dataKey="orm"
-            stroke={chart.color}
+            stroke={VOLT}
             strokeWidth={3}
             fill={`url(#${gradId})`}
             dot={(props: { cx?: number; cy?: number; index?: number }) => {
@@ -417,13 +398,13 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
               if (!isLatest || cx === undefined || cy === undefined) return <></>;
               return (
                 <g key="latest-dot">
-                  <circle cx={cx} cy={cy} r={10} fill={chart.color} fillOpacity={0.25} />
+                  <circle cx={cx} cy={cy} r={10} fill={VOLT} fillOpacity={0.25} />
                   <circle
                     cx={cx} cy={cy} r={4.5}
-                    fill={chart.color}
+                    fill={VOLT}
                     stroke="#000"
                     strokeWidth={2}
-                    style={{ filter: `drop-shadow(0 0 8px ${chart.color})` }}
+                    style={{ filter: `drop-shadow(0 0 8px ${VOLT})` }}
                   />
                 </g>
               );
@@ -437,7 +418,7 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
           <Line
             type="monotone"
             dataKey="proj"
-            stroke={chart.color}
+            stroke={VOLT}
             strokeWidth={2}
             strokeDasharray="5 5"
             strokeOpacity={0.55}
@@ -447,38 +428,40 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* 메트릭 — 총 성장(+Nkg)은 OneRMReportCard에 이미 표시되므로 중복 생략, PR 갱신 상황 + 목표 잔여량만 */}
-      <div className="flex items-center justify-between gap-3 pt-3 border-t border-pt-5 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          {chart.streak >= 2 ? (
-            <>
-              <Award size={13} style={{ color: chart.color }} />
-              <span className="font-cond font-bold text-xs leading-none text-ink-0">
-                <span style={{ color: chart.color }}>{chart.streak}회 연속</span> 개인 최고 기록(PR) 경신
-              </span>
-            </>
-          ) : chart.prCount > 0 ? (
-            <>
-              <Trophy size={11} style={{ color: chart.color }} />
-              <span className="font-cond font-bold leading-none" style={{ color: chart.color, fontSize: 11 }}>
-                PR × {chart.prCount}
-              </span>
-            </>
-          ) : null}
+      {/* 메트릭 — 관리자 전체 대시보드에서만 표시 (member 통합 카드는 OneRMReportCard가 이미 커버) */}
+      {!bare && (
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-pt-5 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            {chart.streak >= 2 ? (
+              <>
+                <Award size={13} style={{ color: VOLT }} />
+                <span className="font-cond font-bold text-xs leading-none text-ink-0">
+                  <span style={{ color: VOLT }}>{chart.streak}회 연속</span> 개인 최고 기록(PR) 경신
+                </span>
+              </>
+            ) : chart.prCount > 0 ? (
+              <>
+                <Trophy size={11} style={{ color: VOLT }} />
+                <span className="font-cond font-bold leading-none" style={{ color: VOLT, fontSize: 11 }}>
+                  PR × {chart.prCount}
+                </span>
+              </>
+            ) : null}
+          </div>
+          {chart.ghostKg && chart.current > 0 && chart.current < chart.ghostKg && (
+            <span
+              className="px-3 py-1.5 rounded-full text-[10px] font-cond font-semibold leading-none shrink-0"
+              style={{
+                background: "rgba(211,255,82,0.1)",
+                border: "1px solid rgba(211,255,82,0.25)",
+                color: VOLT,
+              }}
+            >
+              목표까지 {chart.ghostKg - chart.current}kg 남음
+            </span>
+          )}
         </div>
-        {chart.ghostKg && chart.current > 0 && chart.current < chart.ghostKg && (
-          <span
-            className="px-3 py-1.5 rounded-full text-[10px] font-cond font-semibold leading-none shrink-0"
-            style={{
-              background: `${chart.color}1A`,
-              border: `1px solid ${chart.color}40`,
-              color: chart.color,
-            }}
-          >
-            목표까지 {chart.ghostKg - chart.current}kg 남음
-          </span>
-        )}
-      </div>
+      )}
     </>
   );
 
@@ -489,8 +472,8 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
       className="pt-card flex flex-col gap-4"
       style={{
         padding: 22,
-        background: `linear-gradient(160deg, ${chart.color}12 0%, rgba(20,20,20,0.85) 60%)`,
-        borderColor: `${chart.color}30`,
+        background: "linear-gradient(160deg, rgba(211,255,82,0.06) 0%, rgba(20,20,20,0.85) 60%)",
+        borderColor: "rgba(211,255,82,0.18)",
       }}
     >
       {body}
