@@ -639,6 +639,7 @@ function MetricRow({
     : false;
   const deltaColor = delta == null || delta === 0 ? "var(--ink-4)" : isGood ? "var(--volt)" : "var(--ink-3)";
   const canExpand = !!(historyData && historyKey && historyData.length >= 2);
+  const decimals = unit === "kcal" ? 0 : unit === "" ? 2 : 1;
 
   return (
     <div>
@@ -666,7 +667,19 @@ function MetricRow({
         <div className="px-5 pb-4">
           <ResponsiveContainer width="100%" height={70}>
             <LineChart data={historyData} margin={{ top: 4, right: 2, left: -30, bottom: 0 }}>
-              <Line type="monotone" dataKey={historyKey!} stroke={VOLT} strokeWidth={2} dot={{ r: 3, fill: VOLT }} />
+              <XAxis dataKey="date" hide />
+              <Tooltip
+                cursor={{ stroke: "rgba(255,255,255,0.14)", strokeWidth: 1 }}
+                content={<BodyTrendTooltip metricLabel={label} unit={unit} decimals={decimals} />}
+              />
+              <Line
+                type="monotone"
+                dataKey={historyKey!}
+                stroke={VOLT}
+                strokeWidth={2}
+                dot={{ r: 3, fill: VOLT }}
+                activeDot={{ r: 5, fill: VOLT, stroke: "#080808", strokeWidth: 2 }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

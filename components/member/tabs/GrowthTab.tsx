@@ -13,7 +13,6 @@ import {
 } from "@/lib/types";
 import { computeOneRMProgress } from "@/lib/growth";
 import { TabHeader } from "@/components/member/TabHeader";
-import { Confetti } from "@/components/shared/Confetti";
 import { HeroSBDChart } from "@/components/shared/HeroSBDChart";
 import { SupportCarousel } from "@/components/shared/SupportCarousel";
 import { OneRMReportCard } from "@/components/shared/OneRMReportCard";
@@ -50,7 +49,6 @@ export function GrowthTab({
 }: Props) {
   const [subTab, setSubTab] = useState<SubTab>("strength");
   const [benchmarks, setBenchmarks] = useState<BenchmarkData[]>([]);
-  const [confettiKey, setConfettiKey] = useState(0);
 
   const ageGroup = getAgeGroup(member.birth_date);
   const sbdConfig = member.gender === "female" ? FEMALE_SBD : MALE_SBD;
@@ -69,12 +67,6 @@ export function GrowthTab({
       }
     })();
   }, [member.gender, ageGroup]);
-
-  /* 진입 시 컨페티 1회 */
-  useEffect(() => {
-    const t = setTimeout(() => setConfettiKey(1), 300);
-    return () => clearTimeout(t);
-  }, []);
 
   /* 종합 등급 계산 */
   const overall = useMemo(() => {
@@ -156,8 +148,6 @@ export function GrowthTab({
   }, 0);
   return (
     <div className="anim-tab-slide flex flex-col gap-7 pt-2 pb-36">
-      <Confetti trigger={confettiKey} count={32} />
-
       {/* 헤더 */}
       <div className="px-5">
         <TabHeader title="GROWTH REPORT" subtitle="데이터로 증명되는 당신의 발전" />

@@ -37,6 +37,21 @@ const PULLUP_NAMES = ["풀업머신", "풀업"];
 /* 세션별 수행 내역 기본 노출 건수 — 나머지는 "전체 기록 보기"로 펼침 */
 const LOG_PREVIEW_COUNT = 5;
 
+/* 종목별 쉬운 한글 설명 — 운동 명칭만으로 기능이 떠오르지 않을 때 보조 설명 */
+const EXERCISE_DESC: Record<string, string> = {
+  랫풀다운: "등 넓은근을 당겨 등 두께를 키우는 운동이에요.",
+  "케이블 로우": "팔과 등을 당겨 등 중앙부를 두껍게 만드는 운동이에요.",
+  숄더프레스: "어깨(삼각근)를 위로 밀어 올려 어깨를 키우는 운동이에요.",
+  체스트프레스: "가슴을 앞으로 밀어 상체 앞면을 키우는 운동이에요.",
+  풀업머신: "보조 무게로 몸을 당겨 올려 등·팔 힘을 기르는 운동이에요. 보조 무게가 낮을수록 더 강한 거예요.",
+  레그익스텐션: "허벅지 앞쪽(대퇴사두근)을 펴는 힘을 키우는 운동이에요.",
+  레그컬: "허벅지 뒤쪽(햄스트링)을 굽히는 힘을 키우는 운동이에요.",
+  레그프레스: "엉덩이와 허벅지 전체를 밀어내는 하체 힘을 키우는 운동이에요.",
+  힙어브덕션: "엉덩이 옆쪽 근육을 벌려 골반 안정성을 높이는 운동이에요.",
+  힙어덕션: "허벅지 안쪽 근육을 모아주는 힘을 키우는 운동이에요.",
+  글루트머신: "엉덩이 근육을 집중적으로 키우는 운동이에요.",
+};
+
 interface Props {
   sessions: Session[];
   recordsBySession: Record<string, ExerciseRecord[]>;
@@ -276,7 +291,7 @@ function SupportRow({
         className="tap-haptic w-full flex items-center justify-between gap-3 px-3.5 py-3.5"
       >
         <span className="text-sm font-bold text-ink-0 truncate text-left">
-          {card.isReverse ? "⬆ " : ""}{card.name}
+          {card.name}
         </span>
         <div className="flex items-center gap-2.5 shrink-0">
           <span className="font-mono-num font-extrabold tabular-nums text-ink-0" style={{ fontSize: 15 }}>
@@ -304,6 +319,13 @@ function SupportRow({
 
       {expanded && (
         <div className="px-3.5 pb-4 flex flex-col gap-3">
+          {/* 쉬운 한글 설명 */}
+          {EXERCISE_DESC[card.name] && (
+            <p className="text-[11px] text-ink-3 leading-relaxed">
+              {EXERCISE_DESC[card.name]}
+            </p>
+          )}
+
           {/* 시작 → 현재 */}
           <div
             className="flex items-baseline gap-1.5 flex-wrap rounded-2xl px-3 py-2.5"
