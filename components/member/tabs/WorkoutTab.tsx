@@ -530,7 +530,7 @@ function HistoryCard({ item }: { item: HItem }) {
         <div className="flex items-center gap-3.5 min-w-0">
           {/* 날짜 */}
           <div className="text-center shrink-0" style={{ width: 48 }}>
-            <p className="font-mono-num font-extrabold text-ink-0 leading-none" style={{ fontSize: 17 }}>
+            <p className="font-cond font-bold tabular-nums text-ink-0 leading-none" style={{ fontSize: 17 }}>
               {item.date.slice(5, 7)}.{item.date.slice(8, 10)}
             </p>
             <p className="text-[10px] font-cond text-ink-3 leading-none mt-1">{DAYS[d.getDay()]}요일</p>

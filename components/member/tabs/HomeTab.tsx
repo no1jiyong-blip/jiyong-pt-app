@@ -105,11 +105,11 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
             진행률
           </p>
           <p
-            className="font-mono-num font-extrabold leading-none"
+            className="font-mono-num font-extrabold tabular-nums leading-none"
             style={{
-              fontSize: 26,
+              fontSize: 20,
               color: "var(--volt)",
-              textShadow: "0 0 16px var(--volt-glow-2)",
+              textShadow: "0 0 12px var(--volt-glow-2)",
             }}
           >
             {progressPct}%
@@ -155,62 +155,63 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
         />
       </section>
 
-      {/* ─── 5. 다음 수업 — 메인 하이라이트 카드 ─── */}
+      {/* ─── 5. 다음 수업 — 섹션 제목(카드 바깥) + 메인 하이라이트 카드 ─── */}
       {nextSession && (
-        <section
-          className="flex flex-col gap-4"
-          style={{
-            padding: 22,
-            borderRadius: 24,
-            background: "linear-gradient(160deg, rgba(211,255,82,0.07) 0%, #141414 65%)",
-            border: "1px solid rgba(211,255,82,0.2)",
-          }}
-        >
-          {/* 상단 메타 영역(라벨 + 한 줄 메타) + D-Day */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-cond font-semibold text-ink-4 leading-none">
-                다음 수업
-              </span>
+        <section className="flex flex-col gap-4">
+          <h2 className="font-cond font-bold text-ink-0" style={{ fontSize: 17 }}>
+            다음 수업
+          </h2>
+
+          <div
+            className="flex flex-col gap-4"
+            style={{
+              padding: 22,
+              borderRadius: 24,
+              background: "linear-gradient(160deg, rgba(211,255,82,0.07) 0%, #141414 65%)",
+              border: "1px solid rgba(211,255,82,0.2)",
+            }}
+          >
+            {/* 상단 메타 한 줄 + D-Day */}
+            <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums leading-none">
                 {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
                 {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
                 {nextSession.time ? ` · ${nextSession.time}` : ""}
                 {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
               </span>
+              {dDay !== null && (
+                <span
+                  className="font-cond font-extrabold tabular-nums leading-none shrink-0"
+                  style={{ fontSize: 16, color: "var(--volt)" }}
+                >
+                  {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
+                </span>
+              )}
             </div>
-            {dDay !== null && (
-              <span
-                className="font-cond font-extrabold tabular-nums leading-none shrink-0"
-                style={{ fontSize: 16, color: "var(--volt)" }}
-              >
-                {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
-              </span>
+
+            {/* 운동 컨셉 — 카드의 단독 메인 타이틀 */}
+            <h3
+              className="font-extrabold text-ink-0 leading-tight truncate"
+              style={{ fontSize: 28, letterSpacing: "-0.02em" }}
+            >
+              {nextSession.title || "PT 수업"}
+            </h3>
+
+            {/* 예정 종목 — 긴 문장형 종목명도 자연스럽게 줄바꿈되는 무채색 텍스트 행 리스트 */}
+            {plannedExerciseNames.length > 0 && (
+              <div className="flex flex-col pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                {plannedExerciseNames.map((name, i) => (
+                  <p
+                    key={name}
+                    className="text-sm font-cond font-semibold text-ink-1 leading-snug py-2"
+                    style={i > 0 ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : undefined}
+                  >
+                    {name}
+                  </p>
+                ))}
+              </div>
             )}
           </div>
-
-          {/* 운동 컨셉 — 카드의 단독 메인 타이틀 */}
-          <h3
-            className="font-extrabold text-ink-0 leading-tight truncate"
-            style={{ fontSize: 28, letterSpacing: "-0.02em" }}
-          >
-            {nextSession.title || "PT 수업"}
-          </h3>
-
-          {/* 예정 종목 — 긴 문장형 종목명도 자연스럽게 줄바꿈되는 무채색 텍스트 행 리스트 */}
-          {plannedExerciseNames.length > 0 && (
-            <div className="flex flex-col pt-1" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
-              {plannedExerciseNames.map((name, i) => (
-                <p
-                  key={name}
-                  className="text-sm font-cond font-semibold text-ink-1 leading-snug py-2"
-                  style={i > 0 ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : undefined}
-                >
-                  {name}
-                </p>
-              ))}
-            </div>
-          )}
         </section>
       )}
     </div>
