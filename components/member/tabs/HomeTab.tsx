@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { AlertTriangle } from "lucide-react";
 import type { Member, Session, ExerciseRecord, PersonalLog } from "@/lib/types";
-import { getTodayISO, MONTH_ABBR, DAY_NAME_KO } from "@/lib/utils";
+import { getTodayISO, DAY_NAME_KO } from "@/lib/utils";
 import { SmartCalendar } from "@/components/member/SmartCalendar";
 import { TabHeader } from "@/components/member/TabHeader";
 
@@ -47,7 +47,7 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
   }, [nextSession, recordsBySession]);
 
   return (
-    <div className="anim-tab-slide flex flex-col gap-7 px-5 pt-2 pb-32">
+    <div className="anim-tab-slide flex flex-col gap-7 px-5 pt-2 pb-36">
       {/* ─── 1. 통일된 탭 헤더 ─── */}
       <TabHeader
         title="DASHBOARD"
@@ -155,34 +155,22 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
         />
       </section>
 
-      {/* ─── 5. 다음 수업 — 나이키 스포츠 패스 티켓 ─── */}
+      {/* ─── 5. 다음 수업 ─── */}
       {nextSession && (
-        <section className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
-          <div className="flex items-center gap-4">
-            {/* 날짜 타일 */}
-            <div
-              className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
-              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
-            >
-              <span className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
-                {MONTH_ABBR[new Date(nextSession.date).getMonth()]}
+        <section className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+          <div className="flex items-start justify-between gap-3">
+            {/* 세션 정보 — 그날의 운동 컨셉(제목)을 가장 뚜렷하게 노출 */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+              <span className="text-[10px] font-cond font-bold text-ink-3 tracking-wider leading-none">
+                1:1 PT 수업
               </span>
-              <span className="font-mono-num font-extrabold text-2xl text-ink-0 leading-none">
-                {new Date(nextSession.date).getDate()}
-              </span>
-            </div>
-
-            {/* 세션 정보 — 그날의 운동 컨셉(제목)을 대표로 노출 */}
-            <div className="flex-1 min-w-0 flex flex-col gap-1">
-              <p className="text-[11px] font-cond font-bold text-volt tracking-wider uppercase leading-none">
-                1:1 PERSONAL TRAINING
-              </p>
-              <p className="font-bold text-ink-0 text-base leading-snug truncate">
+              <h3 className="font-bold text-ink-0 leading-snug truncate" style={{ fontSize: 20 }}>
                 {nextSession.title || "PT 수업"}
-              </p>
+              </h3>
               <p className="text-xs text-ink-3 font-cond leading-none tabular-nums">
-                {nextSession.time && `${nextSession.time} · `}
-                {DAY_NAME_KO[new Date(nextSession.date).getDay()]}
+                {new Date(nextSession.date).getMonth() + 1}월 {new Date(nextSession.date).getDate()}일
+                {" "}({DAY_NAME_KO[new Date(nextSession.date).getDay()].charAt(0)})
+                {nextSession.time ? ` · ${nextSession.time}` : ""}
                 {nextSession.session_number ? ` · ${nextSession.session_number}회차` : ""}
               </p>
             </div>
@@ -206,12 +194,12 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
           {plannedExerciseNames.length > 0 && (
             <div className="flex flex-col gap-1.5 pt-3" style={{ borderTop: "1px solid var(--pt-5)" }}>
               <span className="text-[10px] font-cond font-bold text-ink-3">예정 종목</span>
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {plannedExerciseNames.map((name, i) => (
-                  <div key={name} className="flex items-center gap-2.5">
+                  <div key={name} className="flex items-baseline gap-2.5">
                     <span
-                      className="font-mono-num font-bold tabular-nums shrink-0 text-right"
-                      style={{ fontSize: 11, color: "var(--volt)", width: 14 }}
+                      className="font-mono-num tabular-nums shrink-0 text-right text-ink-4"
+                      style={{ fontSize: 11, width: 14 }}
                     >
                       {i + 1}
                     </span>
