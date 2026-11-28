@@ -180,20 +180,13 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
           </span>
         </div>
 
-        {/* 추가 버튼 (모달 오픈) */}
-        <button
-          onClick={() => setShowForm(true)}
-          className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm text-ink-0 transition-colors"
-          style={{ height: 56, background: "var(--pt-2)", border: "1px solid var(--pt-5)" }}
-        >
-          <span
-            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-            style={{ background: "rgba(211,255,82,0.1)", border: "1px solid var(--volt-glow-2)", color: "var(--volt)" }}
-          >
-            <Plus size={14} strokeWidth={3} />
-          </span>
-          개인 운동 기록 추가
-        </button>
+        {/* 토스 스타일 단계별 간편 기록 카드 */}
+        <QuickLogCard
+          member={member}
+          personalLogs={personalLogs}
+          onUpdate={onUpdate}
+          onOpenDetail={() => setShowForm(true)}
+        />
 
         {showForm && (
           <PersonalWorkoutModal
@@ -263,7 +256,257 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
 }
 
 /* ════════════════════════════════════════════════════════════════
-   개인 운동 입력 모달
+   간편 기록 카드 — 토스 스타일 단계별(Step-by-step) 대화형 입력
+   Step1 출석 → Step2 운동 종류·부위(중복 선택) → Step3 운동 시간 → 완료
+   ════════════════════════════════════════════════════════════════ */
+type QuickStep = "attend" | "category" | "duration" | "done";
+
+const QUICK_CATEGORIES = [
+  { key: "lower", label: "하체운동" },
+  { key: "upper", label: "상체운동" },
+  { key: "combo", label: "상&하체 복합" },
+  { key: "core", label: "코어운동" },
+  { key: "cardio", label: "유산소운동" },
+] as const;
+type QuickCategoryKey = (typeof QUICK_CATEGORIES)[number]["key"];
+
+const LOWER_PARTS = ["엉덩이", "뒷허벅지", "앞허벅지"];
+const UPPER_PARTS = ["어깨", "등", "가슴", "팔"];
+const QUICK_DURATIONS = ["20분", "30분", "40분", "50분", "60분", "90분 이상"];
+
+function buildQuickSummary(categories: QuickCategoryKey[], lowerParts: string[], upperParts: string[]) {
+  return categories
+    .map((key) => {
+      const cat = QUICK_CATEGORIES.find((c) => c.key === key)!;
+      if (key === "lower" && lowerParts.length > 0) return `${cat.label}(${lowerParts.join("·")})`;
+      if (key === "upper" && upperParts.length > 0) return `${cat.label}(${upperParts.join("·")})`;
+      return cat.label;
+    })
+    .join(" + ");
+}
+
+function QuickChip({
+  label, active, onClick, mono = false,
+}: {
+  label: string; active: boolean; onClick: () => void; mono?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`tap-haptic px-3.5 py-2.5 rounded-xl text-sm font-cond font-bold transition-all ${mono ? "tabular-nums" : ""}`}
+      style={
+        active
+          ? { background: "rgba(211,255,82,0.12)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }
+          : { background: "var(--pt-3)", color: "var(--ink-2)", border: "1px solid var(--pt-5)" }
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function QuickLogCard({
+  member, personalLogs, onUpdate, onOpenDetail,
+}: {
+  member: Member;
+  personalLogs: PersonalLog[];
+  onUpdate: () => void;
+  onOpenDetail: () => void;
+}) {
+  const today = getTodayISO();
+  const todayLog = useMemo(
+    () => personalLogs.find((l) => l.log_date === today) ?? null,
+    [personalLogs, today]
+  );
+
+  const [step, setStep] = useState<QuickStep>(todayLog ? "done" : "attend");
+  const [logId, setLogId] = useState<string | null>(todayLog?.id ?? null);
+  const [categories, setCategories] = useState<QuickCategoryKey[]>([]);
+  const [lowerParts, setLowerParts] = useState<string[]>([]);
+  const [upperParts, setUpperParts] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [summary, setSummary] = useState<string | null>(
+    todayLog
+      ? `${todayLog.workout_memo || todayLog.exercise_name}${todayLog.memo ? ` · ${todayLog.memo}` : ""}`
+      : null
+  );
+
+  const toggleCategory = (key: QuickCategoryKey) =>
+    setCategories((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  const toggleLowerPart = (part: string) =>
+    setLowerParts((prev) => (prev.includes(part) ? prev.filter((p) => p !== part) : [...prev, part]));
+  const toggleUpperPart = (part: string) =>
+    setUpperParts((prev) => (prev.includes(part) ? prev.filter((p) => p !== part) : [...prev, part]));
+
+  /* Step 1 — 출석만으로 즉시 저장 (히스토리·출석 캘린더 반영) */
+  const handleAttend = async () => {
+    setSaving(true);
+    const { data, error } = await supabase
+      .from("personal_logs")
+      .insert({ member_id: member.id, log_date: today, exercise_name: "출석", workout_memo: "출석" })
+      .select()
+      .single();
+    setSaving(false);
+    if (!error && data) {
+      setLogId(data.id);
+      setStep("category");
+      onUpdate();
+    }
+  };
+
+  /* Step 3 — 운동 시간 선택 즉시 Step1 로그를 종류·부위·시간으로 업데이트 */
+  const handleDuration = async (duration: string) => {
+    if (!logId) return;
+    setSaving(true);
+    const finalSummary = buildQuickSummary(categories, lowerParts, upperParts);
+    await supabase
+      .from("personal_logs")
+      .update({ exercise_name: finalSummary, workout_memo: finalSummary, memo: duration })
+      .eq("id", logId);
+    setSaving(false);
+    setSummary(`${finalSummary} · ${duration}`);
+    setStep("done");
+    onUpdate();
+  };
+
+  if (step === "done") {
+    return (
+      <div className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
+        <div className="flex items-center gap-2">
+          <span
+            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: "rgba(211,255,82,0.12)" }}
+          >
+            <Check size={14} className="text-volt" strokeWidth={3} />
+          </span>
+          <span className="text-sm font-cond font-bold text-ink-0">오늘 운동 기록 완료</span>
+        </div>
+        {summary && (
+          <p className="text-sm font-cond font-semibold text-ink-1 leading-relaxed">{summary}</p>
+        )}
+        <button
+          type="button"
+          onClick={onOpenDetail}
+          className="tap-haptic text-xs font-cond font-bold text-ink-3 text-left w-fit"
+        >
+          + 종목·무게 상세 기록하기
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pt-card flex flex-col gap-4" style={{ padding: 20 }}>
+      {step === "attend" && (
+        <>
+          <p className="font-bold text-ink-0 leading-snug" style={{ fontSize: 17 }}>
+            오늘 운동하러 오셨나요?
+          </p>
+          <button
+            type="button"
+            onClick={handleAttend}
+            disabled={saving}
+            className="tap-haptic w-full rounded-2xl flex items-center justify-center gap-2 font-cond font-bold text-sm"
+            style={{ height: 52, background: "var(--volt)", color: "#000" }}
+          >
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            네, 출석할게요
+          </button>
+        </>
+      )}
+
+      {step === "category" && (
+        <>
+          <p className="font-bold text-ink-0 leading-snug" style={{ fontSize: 17 }}>
+            어떤 운동을 하시나요?
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_CATEGORIES.map((cat) => (
+              <QuickChip
+                key={cat.key}
+                label={cat.label}
+                active={categories.includes(cat.key)}
+                onClick={() => toggleCategory(cat.key)}
+              />
+            ))}
+          </div>
+
+          {categories.includes("lower") && (
+            <div className="flex flex-col gap-2 anim-fade-slide">
+              <span className="text-[11px] font-cond font-semibold text-ink-3">어느 부위인가요?</span>
+              <div className="flex flex-wrap gap-2">
+                {LOWER_PARTS.map((part) => (
+                  <QuickChip
+                    key={part}
+                    label={part}
+                    active={lowerParts.includes(part)}
+                    onClick={() => toggleLowerPart(part)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {categories.includes("upper") && (
+            <div className="flex flex-col gap-2 anim-fade-slide">
+              <span className="text-[11px] font-cond font-semibold text-ink-3">어느 부위인가요?</span>
+              <div className="flex flex-wrap gap-2">
+                {UPPER_PARTS.map((part) => (
+                  <QuickChip
+                    key={part}
+                    label={part}
+                    active={upperParts.includes(part)}
+                    onClick={() => toggleUpperPart(part)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setStep("duration")}
+            disabled={categories.length === 0}
+            className="tap-haptic w-full rounded-2xl flex items-center justify-center font-cond font-bold text-sm mt-1"
+            style={{
+              height: 52,
+              background: categories.length > 0 ? "var(--volt)" : "var(--pt-3)",
+              color: categories.length > 0 ? "#000" : "var(--ink-4)",
+            }}
+          >
+            다음
+          </button>
+        </>
+      )}
+
+      {step === "duration" && (
+        <>
+          <p className="font-bold text-ink-0 leading-snug" style={{ fontSize: 17 }}>
+            운동 시간은 얼마나 되나요?
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {QUICK_DURATIONS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => handleDuration(d)}
+                disabled={saving}
+                className="tap-haptic py-3 rounded-xl text-sm font-cond font-bold tabular-nums"
+                style={{ background: "var(--pt-3)", color: "var(--ink-1)", border: "1px solid var(--pt-5)" }}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   개인 운동 입력 모달 (상세 기록 — 간편 기록 완료 후 보조 경로)
    ════════════════════════════════════════════════════════════════ */
 const QUICK_EXERCISES = ["랫풀다운", "체스트프레스", "스쿼트", "데드리프트", "레그프레스", "숄더프레스"];
 
