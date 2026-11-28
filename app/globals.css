@@ -65,7 +65,9 @@
      라틴 문자는 그대로 Barlow 계열이 쓰이도록 유지 (문자 단위 폴백) */
   --f-cond: "Pretendard", "Barlow Condensed", "Arial Narrow", sans-serif;
   --f-body: "Pretendard", "Barlow", -apple-system, system-ui, sans-serif;
-  --f-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  /* 숫자 고정폭은 font-variant-numeric(tabular-nums)으로 처리하므로 모노스페이스
+     서체 대신 Pretendard를 앞에 둬 앱 기준 서체와 이질감 없이 통일 */
+  --f-mono: "Pretendard", "SF Mono", ui-monospace, monospace;
 }
 
 /* Tailwind v4는 CSS 레이어(@layer)로 우선순위를 관리합니다. 이 리셋을
@@ -92,9 +94,9 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--f-display);
-    font-weight: 400;
-    letter-spacing: 0.04em;
+    font-family: var(--f-cond);
+    font-weight: 700;
+    letter-spacing: -0.01em;
     line-height: 1;
     color: #fff;
   }
@@ -180,10 +182,12 @@
 /* ════════════════════════════════════════════════════════════════
    TYPOGRAPHY
    ════════════════════════════════════════════════════════════════ */
+/* 4개 메인 탭 상단 타이틀(TabHeader의 .font-italic-display)을 제외한 모든
+   "히어로 숫자/타이틀" 자리는 전부 Pretendard 기준 서체로 통일 */
 .font-display {
-  font-family: var(--f-display);
-  font-weight: 400;
-  letter-spacing: 0.04em;
+  font-family: var(--f-cond);
+  font-weight: 800;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 .font-cond { font-family: var(--f-cond); }
@@ -240,9 +244,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  font-family: var(--f-display);
+  font-family: var(--f-cond);
+  font-weight: 800;
   font-size: 24px;
-  letter-spacing: 0.04em;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 .section-bar {

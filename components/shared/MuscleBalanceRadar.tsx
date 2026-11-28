@@ -162,7 +162,7 @@ export function MuscleBalanceRadar({
                     dominantBaseline="middle"
                     fill="#a0a0a0"
                     fontSize={10}
-                    fontFamily="Barlow Condensed"
+                    fontFamily="Pretendard"
                     fontWeight={600}
                   >
                     {payload.value}
