@@ -440,12 +440,36 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
 
         <div className="pt-card" style={{ padding: 0 }}>
           {[
-            { key: "weight", label: "체중", value: latest.weight_kg, prevValue: prevRecord?.weight_kg, unit: "kg", goodDirection: "neutral" as const, historyKey: "체중" },
-            { key: "smm", label: "골격근량", value: latest.skeletal_muscle_kg, prevValue: prevRecord?.skeletal_muscle_kg, unit: "kg", goodDirection: "up" as const, historyKey: "근육" },
-            { key: "bfKg", label: "체지방량", value: latest.body_fat_kg, prevValue: prevRecord?.body_fat_kg, unit: "kg", goodDirection: "down" as const, historyKey: "체지방량" },
-            { key: "bfPct", label: "체지방률", value: latest.body_fat_pct, prevValue: prevRecord?.body_fat_pct, unit: "%", goodDirection: "down" as const, historyKey: "체지방률" },
-            { key: "whr", label: "복부지방률(WHR)", value: latest.whr, prevValue: prevRecord?.whr, unit: "", goodDirection: "down" as const, historyKey: "whr" },
-            { key: "bmr", label: "기초대사량(BMR)", value: latest.bmr_kcal, prevValue: prevRecord?.bmr_kcal, unit: "kcal", goodDirection: "neutral" as const, historyKey: "bmr" },
+            {
+              key: "weight", label: "체중", value: latest.weight_kg, prevValue: prevRecord?.weight_kg, unit: "kg",
+              goodDirection: "neutral" as const, historyKey: "체중",
+              description: "키·체형에 따라 적정 범위가 달라요. 체중만 보기보다 골격근량·체지방량과 함께 봐야 변화의 의미를 알 수 있어요.",
+            },
+            {
+              key: "smm", label: "골격근량", value: latest.skeletal_muscle_kg, prevValue: prevRecord?.skeletal_muscle_kg, unit: "kg",
+              goodDirection: "up" as const, historyKey: "근육",
+              description: "몸을 움직이는 뼈대근육의 양이에요. 많을수록 기초대사량이 높아지고 일상·운동 수행 능력이 좋아져요.",
+            },
+            {
+              key: "bfKg", label: "체지방량", value: latest.body_fat_kg, prevValue: prevRecord?.body_fat_kg, unit: "kg",
+              goodDirection: "down" as const, historyKey: "체지방량",
+              description: "몸에 쌓인 지방의 절대량(kg)이에요. 체지방률과 함께 보면 체중 변화가 지방 때문인지 근육 때문인지 구분할 수 있어요.",
+            },
+            {
+              key: "bfPct", label: "체지방률", value: latest.body_fat_pct, prevValue: prevRecord?.body_fat_pct, unit: "%",
+              goodDirection: "down" as const, historyKey: "체지방률",
+              description: "체중에서 지방이 차지하는 비율이에요. 체중이 같아도 근육·지방 구성에 따라 달라서, 몸매 변화를 가장 잘 보여줘요.",
+            },
+            {
+              key: "whr", label: "복부지방률(WHR)", value: latest.whr, prevValue: prevRecord?.whr, unit: "",
+              goodDirection: "down" as const, historyKey: "whr",
+              description: "허리둘레를 엉덩이둘레로 나눈 비율로 내장지방·복부 비만 위험도를 나타내요. 체형 구조 차이로 남성은 0.90, 여성은 0.85 미만을 표준으로 봐요.",
+            },
+            {
+              key: "bmr", label: "기초대사량(BMR)", value: latest.bmr_kcal, prevValue: prevRecord?.bmr_kcal, unit: "kcal",
+              goodDirection: "neutral" as const, historyKey: "bmr",
+              description: "아무것도 안 해도 생명 유지에 쓰이는 하루 최소 열량이에요. 근육량이 많을수록 기초대사량도 함께 높아져요.",
+            },
           ].map((row, idx) => (
             <div key={row.key} style={idx > 0 ? { borderTop: "1px solid rgba(255,255,255,0.06)" } : undefined}>
               <MetricRow
@@ -458,6 +482,7 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                 onToggle={() => setExpandedRow(expandedRow === row.key ? null : row.key)}
                 historyData={chartData}
                 historyKey={row.historyKey}
+                description={row.description}
               />
             </div>
           ))}
@@ -616,7 +641,7 @@ function BodyTrendTooltip({
 
 /* 체성분 주요 지표 — 통카드 1줄 행 + 아코디언 (게이지/아이콘 없이 수치 중심) */
 function MetricRow({
-  label, value, unit, prevValue, goodDirection, expanded, onToggle, historyData, historyKey,
+  label, value, unit, prevValue, goodDirection, expanded, onToggle, historyData, historyKey, description,
 }: {
   label: string;
   value: number | null | undefined;
@@ -627,6 +652,7 @@ function MetricRow({
   onToggle: () => void;
   historyData?: { date: string; [key: string]: string | number }[];
   historyKey?: string;
+  description?: string;
 }) {
   const delta =
     value != null && prevValue != null ? Math.round((value - prevValue) * 100) / 100 : null;
@@ -634,7 +660,8 @@ function MetricRow({
     ? (goodDirection === "up" ? delta > 0 : delta < 0)
     : false;
   const deltaColor = delta == null || delta === 0 ? "var(--ink-4)" : isGood ? "var(--volt)" : "var(--ink-3)";
-  const canExpand = !!(historyData && historyKey && historyData.length >= 2);
+  const hasChart = !!(historyData && historyKey && historyData.length >= 2);
+  const canExpand = hasChart || !!description;
   const decimals = unit === "kcal" ? 0 : unit === "" ? 2 : 1;
 
   return (
@@ -660,31 +687,36 @@ function MetricRow({
         </div>
       </button>
       {expanded && canExpand && (
-        <div className="px-5 pb-4">
-          <ResponsiveContainer width="100%" height={70}>
-            <LineChart data={historyData} margin={{ top: 4, right: 2, left: -30, bottom: 0 }}>
-              <XAxis dataKey="date" hide />
-              <Tooltip
-                cursor={{ stroke: "rgba(255,255,255,0.14)", strokeWidth: 1 }}
-                content={<BodyTrendTooltip metricLabel={label} unit={unit} decimals={decimals} />}
-              />
-              <Line
-                type="monotone"
-                dataKey={historyKey!}
-                stroke={VOLT}
-                strokeWidth={2}
-                dot={(props: { cx?: number; cy?: number; index?: number }) => {
-                  const { cx, cy, index } = props;
-                  const isLatest = index === (historyData?.length ?? 0) - 1;
-                  if (!isLatest || cx === undefined || cy === undefined) return <></>;
-                  return (
-                    <circle key="latest" cx={cx} cy={cy} r={3.5} fill={VOLT} stroke="#141414" strokeWidth={2} />
-                  );
-                }}
-                activeDot={{ r: 5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="px-5 pb-4 flex flex-col gap-2.5">
+          {description && (
+            <p className="text-[11px] text-ink-3 leading-relaxed">{description}</p>
+          )}
+          {hasChart && (
+            <ResponsiveContainer width="100%" height={70}>
+              <LineChart data={historyData} margin={{ top: 4, right: 2, left: -30, bottom: 0 }}>
+                <XAxis dataKey="date" hide />
+                <Tooltip
+                  cursor={{ stroke: "rgba(255,255,255,0.14)", strokeWidth: 1 }}
+                  content={<BodyTrendTooltip metricLabel={label} unit={unit} decimals={decimals} />}
+                />
+                <Line
+                  type="monotone"
+                  dataKey={historyKey!}
+                  stroke={VOLT}
+                  strokeWidth={2}
+                  dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                    const { cx, cy, index } = props;
+                    const isLatest = index === (historyData?.length ?? 0) - 1;
+                    if (!isLatest || cx === undefined || cy === undefined) return <></>;
+                    return (
+                      <circle key="latest" cx={cx} cy={cy} r={3.5} fill={VOLT} stroke="#141414" strokeWidth={2} />
+                    );
+                  }}
+                  activeDot={{ r: 5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
       )}
     </div>
