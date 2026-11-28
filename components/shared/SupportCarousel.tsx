@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
-  AreaChart,
-  Area,
+  LineChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
@@ -276,7 +276,6 @@ function SupportRow({
   onToggle: () => void;
 }) {
   const [showAllLogs, setShowAllLogs] = useState(false);
-  const gradId = `sg-${card.name.replace(/\s/g, "_").replace(/[^\w]/g, "")}`;
   const unit = card.isReverse ? "pt" : "kg";
   const visibleLogs = showAllLogs ? card.logs : card.logs.slice(0, LOG_PREVIEW_COUNT);
 
@@ -326,49 +325,44 @@ function SupportRow({
             </p>
           )}
 
-          {/* 시작 → 현재 */}
-          <div
-            className="flex items-baseline gap-1.5 flex-wrap rounded-2xl px-3 py-2.5"
-            style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}
-          >
-            <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
-            <span className="text-ink-4 text-[11px]">➔</span>
-            <span className="font-mono-num font-extrabold text-ink-0" style={{ fontSize: 15 }}>
-              {card.current}{unit}
-            </span>
-            {card.streak >= 2 && (
-              <span className="text-[10px] font-cond font-bold text-ink-3 ml-auto">
-                {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
-              </span>
-            )}
-          </div>
-
-          {/* 스파크라인 */}
+          {/* 시작 → 현재 + 스파크라인 — 하나의 카드로 묶어 테두리 중첩 최소화 */}
           <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
+            <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
+              <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
+              <span className="text-ink-4 text-[11px]">➔</span>
+              <span className="font-mono-num font-extrabold text-ink-0 tabular-nums" style={{ fontSize: 15 }}>
+                {card.current}{unit}
+              </span>
+              {card.streak >= 2 && (
+                <span className="text-[10px] font-cond font-bold text-ink-3 ml-auto">
+                  {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
+                </span>
+              )}
+            </div>
             <div className="w-full" style={{ height: 88 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
-                  <defs>
-                    <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={VOLT} stopOpacity={0.3} />
-                      <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                <LineChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
                   <Tooltip
                     content={(props) => <SparkTooltip {...props} isReverse={card.isReverse} />}
                     cursor={{ stroke: VOLT, strokeOpacity: 0.25 }}
                   />
-                  <Area
+                  <Line
                     type="monotone"
                     dataKey="val"
                     stroke={VOLT}
                     strokeWidth={2.5}
-                    fill={`url(#${gradId})`}
-                    dot={{ r: 3.5, fill: VOLT, stroke: "#000", strokeWidth: 1.5 }}
-                    activeDot={{ r: 6, fill: VOLT, stroke: "#000", strokeWidth: 2 }}
+                    dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                      const { cx, cy, index } = props;
+                      const isLatest = index === card.data.length - 1;
+                      if (!isLatest || cx === undefined || cy === undefined) return <></>;
+                      return (
+                        <circle key="latest" cx={cx} cy={cy} r={4} fill={VOLT} stroke="#141414" strokeWidth={2} />
+                      );
+                    }}
+                    activeDot={{ r: 5.5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
                     isAnimationActive={false}
                   />
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </div>

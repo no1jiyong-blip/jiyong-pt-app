@@ -9,8 +9,6 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-  AreaChart,
-  Area,
 } from "recharts";
 import { supabase } from "@/lib/supabase";
 import type { BodyMeasurement } from "@/lib/types";
@@ -388,16 +386,9 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
               />
             </div>
 
-            {/* 추이 차트 — 선택 지표와 무관하게 항상 단일 볼트 컬러 라인 */}
+            {/* 추이 차트 — 면 채우기 없이 라인만, 현재 지점만 얇은 링으로 강조 */}
             <ResponsiveContainer width="100%" height={176}>
-              <AreaChart data={trendHistory} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
-                <defs>
-                  {/* 라인 직하단에만 아주 미세하게 번지는 페이드 — 넓은 면 채우기 대신 포인트 강조용 */}
-                  <linearGradient id="bodyTrendGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={VOLT} stopOpacity={0.12} />
-                    <stop offset="22%" stopColor={VOLT} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+              <LineChart data={trendHistory} margin={{ top: 16, right: 8, left: -8, bottom: 0 }}>
                 <XAxis
                   dataKey={(d: BodyMeasurement) => d.measured_at.slice(5)}
                   tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard, sans-serif" }}
@@ -425,17 +416,22 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
                     />
                   }
                 />
-                <Area
+                <Line
                   type="monotone"
                   dataKey={trendMetric}
                   stroke={VOLT}
                   strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#bodyTrendGlow)"
-                  dot={{ r: 3, fill: VOLT, stroke: "#080808", strokeWidth: 1.5 }}
-                  activeDot={{ r: 5, fill: VOLT, stroke: "#080808", strokeWidth: 2 }}
+                  dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                    const { cx, cy, index } = props;
+                    const isLatest = index === trendHistory.length - 1;
+                    if (!isLatest || cx === undefined || cy === undefined) return <></>;
+                    return (
+                      <circle key="latest" cx={cx} cy={cy} r={4} fill={VOLT} stroke="#141414" strokeWidth={2} />
+                    );
+                  }}
+                  activeDot={{ r: 5.5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
                 />
-              </AreaChart>
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </section>
@@ -677,8 +673,15 @@ function MetricRow({
                 dataKey={historyKey!}
                 stroke={VOLT}
                 strokeWidth={2}
-                dot={{ r: 3, fill: VOLT }}
-                activeDot={{ r: 5, fill: VOLT, stroke: "#080808", strokeWidth: 2 }}
+                dot={(props: { cx?: number; cy?: number; index?: number }) => {
+                  const { cx, cy, index } = props;
+                  const isLatest = index === (historyData?.length ?? 0) - 1;
+                  if (!isLatest || cx === undefined || cy === undefined) return <></>;
+                  return (
+                    <circle key="latest" cx={cx} cy={cy} r={3.5} fill={VOLT} stroke="#141414" strokeWidth={2} />
+                  );
+                }}
+                activeDot={{ r: 5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
               />
             </LineChart>
           </ResponsiveContainer>

@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import {
   ComposedChart,
-  Area,
   Line,
   XAxis,
   YAxis,
@@ -322,8 +321,6 @@ interface ChartItem {
 }
 
 function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) {
-  const gradId = `sbd-${chart.name}`;
-
   const body = (
     <>
       {!bare && (
@@ -343,15 +340,9 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         </div>
       )}
 
-      {/* 차트 */}
+      {/* 차트 — 면 채우기 없이 라인 중심, 현재 지점만 얇은 링으로 강조 */}
       <ResponsiveContainer width="100%" height={bare ? 220 : 180}>
         <ComposedChart data={chart.data} margin={{ top: 12, right: 8, left: -14, bottom: 0 }}>
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={VOLT} stopOpacity={0.2} />
-              <stop offset="100%" stopColor={VOLT} stopOpacity={0} />
-            </linearGradient>
-          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
           <XAxis
             dataKey="date"
@@ -364,6 +355,9 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             tick={{ fill: "#555", fontSize: 10, fontFamily: "Pretendard" }}
             axisLine={false}
             tickLine={false}
+            tickCount={4}
+            width={32}
+            tickFormatter={(v: number) => `${Math.round(v)}`}
           />
           <Tooltip
             content={(props) => <ChartTooltip {...props} />}
@@ -384,32 +378,22 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
               }}
             />
           )}
-          {/* 실제 Area */}
-          <Area
+          {/* 실제 1RM 추이 — 라인만, 면 채우기 없음 */}
+          <Line
             type="monotone"
             dataKey="orm"
             stroke={VOLT}
-            strokeWidth={3}
-            fill={`url(#${gradId})`}
+            strokeWidth={2.5}
             dot={(props: { cx?: number; cy?: number; index?: number }) => {
               const { cx, cy, index } = props;
-              // 최신 기록(PR) 지점 하나만 펄스 링으로 강조 — 과거 점은 라인/영역으로 충분히 드러남
+              // 현재(최신) 지점 하나만 카드 배경에 어울리는 얇은 링으로 표시 — 나머지는 호버 시에만 노출
               const isLatest = index === chart.rawPoints.length - 1;
               if (!isLatest || cx === undefined || cy === undefined) return <></>;
               return (
-                <g key="latest-dot">
-                  <circle cx={cx} cy={cy} r={10} fill={VOLT} fillOpacity={0.25} />
-                  <circle
-                    cx={cx} cy={cy} r={4.5}
-                    fill={VOLT}
-                    stroke="#000"
-                    strokeWidth={2}
-                    style={{ filter: `drop-shadow(0 0 8px ${VOLT})` }}
-                  />
-                </g>
+                <circle key="latest-dot" cx={cx} cy={cy} r={4} fill={VOLT} stroke="#141414" strokeWidth={2} />
               );
             }}
-            activeDot={{ r: 7, stroke: "#000", strokeWidth: 2 }}
+            activeDot={{ r: 5.5, fill: VOLT, stroke: "#141414", strokeWidth: 2 }}
             connectNulls={false}
             isAnimationActive
             animationDuration={800}
@@ -421,7 +405,7 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             stroke={VOLT}
             strokeWidth={2}
             strokeDasharray="5 5"
-            strokeOpacity={0.55}
+            strokeOpacity={0.6}
             dot={false}
             isAnimationActive
           />
