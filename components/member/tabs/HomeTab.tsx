@@ -39,6 +39,13 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
     return Math.round(diffMs / (1000 * 60 * 60 * 24));
   }, [nextSession, today]);
 
+  /* 다음 수업에 트레이너가 미리 입력해둔 예정 종목명 (세트·무게·횟수는 생략 — 현장에서 바뀌는 경우가 많아 종목명만 안내) */
+  const plannedExerciseNames = useMemo(() => {
+    if (!nextSession) return [];
+    const recs = recordsBySession[nextSession.id] ?? [];
+    return [...new Set(recs.map((r) => r.exercise_name))];
+  }, [nextSession, recordsBySession]);
+
   return (
     <div className="anim-tab-slide flex flex-col gap-7 px-5 pt-2 pb-32">
       {/* ─── 1. 통일된 탭 헤더 ─── */}
@@ -150,48 +157,66 @@ export function HomeTab({ member, sessions, recordsBySession, personalLogs }: Pr
 
       {/* ─── 5. 다음 수업 — 나이키 스포츠 패스 티켓 ─── */}
       {nextSession && (
-        <section className="pt-card flex items-center gap-4" style={{ padding: 20 }}>
-          {/* 날짜 타일 */}
-          <div
-            className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
-            style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
-          >
-            <span className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
-              {MONTH_ABBR[new Date(nextSession.date).getMonth()]}
-            </span>
-            <span className="font-mono-num font-extrabold text-2xl text-ink-0 leading-none">
-              {new Date(nextSession.date).getDate()}
-            </span>
-          </div>
+        <section className="pt-card flex flex-col gap-3" style={{ padding: 20 }}>
+          <div className="flex items-center gap-4">
+            {/* 날짜 타일 */}
+            <div
+              className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
+              style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
+            >
+              <span className="text-[10px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
+                {MONTH_ABBR[new Date(nextSession.date).getMonth()]}
+              </span>
+              <span className="font-mono-num font-extrabold text-2xl text-ink-0 leading-none">
+                {new Date(nextSession.date).getDate()}
+              </span>
+            </div>
 
-          {/* 세션 정보 */}
-          <div className="flex-1 min-w-0 flex flex-col gap-1">
-            <p className="text-[11px] font-cond font-bold text-volt tracking-wider uppercase leading-none">
-              1:1 PERSONAL TRAINING
-            </p>
-            <p className="font-bold text-ink-0 text-base leading-snug">
-              {nextSession.time && `${nextSession.time} · `}
-              {DAY_NAME_KO[new Date(nextSession.date).getDay()]}
-            </p>
-            {nextSession.session_number && (
-              <p className="text-xs text-ink-3 font-cond leading-none">
-                Session {nextSession.session_number}
+            {/* 세션 정보 */}
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <p className="text-[11px] font-cond font-bold text-volt tracking-wider uppercase leading-none">
+                1:1 PERSONAL TRAINING
               </p>
+              <p className="font-bold text-ink-0 text-base leading-snug">
+                {nextSession.time && `${nextSession.time} · `}
+                {DAY_NAME_KO[new Date(nextSession.date).getDay()]}
+              </p>
+              {nextSession.session_number && (
+                <p className="text-xs text-ink-3 font-cond leading-none">
+                  Session {nextSession.session_number}
+                </p>
+              )}
+            </div>
+
+            {/* D-Day 뱃지 */}
+            {dDay !== null && (
+              <span
+                className="font-mono-num font-bold px-3 py-1.5 rounded-full text-xs leading-none shrink-0 tabular-nums"
+                style={{
+                  background: "rgba(211,255,82,0.1)",
+                  color: "var(--volt)",
+                  border: "1px solid var(--volt-glow-2)",
+                }}
+              >
+                {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
+              </span>
             )}
           </div>
 
-          {/* D-Day 뱃지 */}
-          {dDay !== null && (
-            <span
-              className="font-mono-num font-bold px-3 py-1.5 rounded-full text-xs leading-none shrink-0"
-              style={{
-                background: "rgba(211,255,82,0.1)",
-                color: "var(--volt)",
-                border: "1px solid var(--volt-glow-2)",
-              }}
-            >
-              {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
-            </span>
+          {/* 예정 종목 — 세트·무게·횟수는 현장에서 바뀌는 경우가 많아 종목명만 가볍게 안내 */}
+          {plannedExerciseNames.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-3" style={{ borderTop: "1px solid var(--pt-5)" }}>
+              <span className="text-[10px] font-cond font-bold text-ink-3 mr-0.5">예정 종목</span>
+              {plannedExerciseNames.map((name) => (
+                <span
+                  key={name}
+                  className="px-2.5 py-1 rounded-full text-xs font-cond font-semibold leading-none"
+                  style={{ background: "rgba(211,255,82,0.08)", color: "var(--volt)", border: "1px solid var(--volt-glow-2)" }}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
           )}
         </section>
       )}

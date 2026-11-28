@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import {
-  Plus, X, Copy, Trophy, Loader2, Clock, Dumbbell, Minus,
+  Plus, X, Copy, Trophy, Loader2, Dumbbell, Minus,
   ChevronDown, Check,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ import {
   ALL_EXERCISES, type PersonalLog, type Session,
   type ExerciseRecord, type Member, calcOneRM,
 } from "@/lib/types";
-import { getTodayISO, MONTH_ABBR } from "@/lib/utils";
+import { getTodayISO } from "@/lib/utils";
 import { Confetti } from "@/components/shared/Confetti";
 import { TabHeader } from "@/components/member/TabHeader";
 
@@ -56,29 +56,11 @@ type HistoryFilter = "all" | "pt" | "personal";
 type PeriodFilter  = "all" | "week" | "month";
 
 export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, onUpdate }: Props) {
-  const today = getTodayISO();
   const [confettiKey,  setConfettiKey]  = useState(0);
   const [pbExercise,   setPbExercise]   = useState<string | null>(null);
   const [showForm,     setShowForm]     = useState(false);
   const [histFilter,   setHistFilter]   = useState<HistoryFilter>("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
-
-  /* 다음 PT 세션 */
-  const nextSession = useMemo(() =>
-    sessions
-      .filter(s => s.date >= today && s.status === "scheduled")
-      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null,
-    [sessions, today]
-  );
-
-  /* D-day */
-  const dDay = useMemo(() => {
-    if (!nextSession) return null;
-    return Math.ceil(
-      (new Date(nextSession.date).getTime() - new Date(today).getTime()) /
-      (1000 * 60 * 60 * 24)
-    );
-  }, [nextSession, today]);
 
   /* PB 맵 */
   const pbMap = useMemo(() => {
@@ -181,15 +163,7 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
         </div>
       )}
 
-      <TabHeader title="운동 일지" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
-
-      {/* ─── 다음 운동 ─── */}
-      <NextWorkoutSection
-        session={nextSession}
-        records={nextSession ? (recordsBySession[nextSession.id] ?? []) : []}
-        isToday={nextSession?.date === today}
-        dDay={dDay}
-      />
+      <TabHeader title="WORKOUT LOG" subtitle="오늘의 운동과 개인 운동 일지를 관리하세요" />
 
       {/* ─── 개인 운동 일지 ─── */}
       <section className="flex flex-col gap-3">
@@ -283,136 +257,6 @@ export function WorkoutTab({ member, sessions, recordsBySession, personalLogs, o
           : <div className="flex flex-col gap-2">{history.map(item => <HistoryCard key={item.id} item={item} />)}</div>}
       </section>
     </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════════
-   NEXT WORKOUT 섹션 — 스크린샷 1:1 구현
-   세션 없어도 항상 표시
-   ════════════════════════════════════════════════════════════════ */
-function NextWorkoutSection({ session, records, isToday, dDay }: {
-  session: Session | null;
-  records: ExerciseRecord[];
-  isToday: boolean | undefined;
-  dDay: number | null;
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      {/* ── 헤더: 다음 운동 + D-day 배지 ── */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="font-cond font-bold text-ink-0" style={{ fontSize: 15 }}>
-            다음 운동
-          </span>
-        </div>
-        {dDay !== null && (
-          <span
-            className="font-mono-num font-bold leading-none shrink-0"
-            style={{
-              fontSize: 11,
-              color: "var(--volt)",
-              background: "rgba(211,255,82,0.1)",
-              border: "1px solid var(--volt-glow-2)",
-              borderRadius: 999,
-              padding: "4px 10px",
-              boxShadow: "0 0 10px rgba(211,255,82,0.2)",
-            }}
-          >
-            {dDay <= 0 ? "D-DAY" : `D-${dDay}`}
-          </span>
-        )}
-      </div>
-
-      {/* ── 카드 ── */}
-      <div className="pt-card" style={{ padding: 20 }}>
-        {session ? (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              {/* 날짜 타일 */}
-              <div
-                className="w-14 h-14 rounded-2xl flex flex-col items-center justify-center shrink-0"
-                style={{ background: "rgba(0,0,0,0.5)", border: "1px solid var(--pt-6)" }}
-              >
-                <span className="text-[9px] font-cond font-bold text-ink-3 uppercase tracking-wider leading-none mb-1">
-                  {MONTH_ABBR[new Date(session.date).getMonth()]}
-                </span>
-                <span className="font-mono-num font-extrabold text-xl text-ink-0 leading-none">
-                  {new Date(session.date).getDate()}
-                </span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-cond font-bold text-volt tracking-wider leading-none mb-1">
-                  {isToday ? "오늘" : "1:1 PT 수업"}
-                  {session.session_number && ` · ${session.session_number}회차`}
-                </p>
-                <h3 className="font-bold text-ink-0 text-lg leading-snug truncate">
-                  {session.time && `${session.time} `}
-                  {isToday ? "오늘의 운동" : session.title || "PT 수업"}
-                </h3>
-              </div>
-            </div>
-
-            {/* 운동 목록 or 대기 상태 */}
-            {records.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {records.map((ex) => (
-                  <div
-                    key={ex.id}
-                    className="flex items-center justify-between gap-3 px-3 rounded-xl"
-                    style={{
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
-                      height: 44,
-                    }}
-                  >
-                    <p className="font-cond font-bold text-ink-0 text-sm leading-none">{ex.exercise_name}</p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-cond text-ink-3">{ex.sets}세트 × {ex.reps}회</span>
-                      {ex.weight && (
-                        <span
-                          className="font-mono-num font-bold leading-none"
-                          style={{
-                            background: "rgba(211,255,82,0.1)",
-                            color: "var(--volt)",
-                            border: "1px solid var(--volt-glow-2)",
-                            borderRadius: 8,
-                            padding: "4px 8px",
-                            fontSize: 11,
-                          }}
-                        >
-                          @{ex.weight}kg
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div
-                className="w-full rounded-2xl p-3 flex items-center justify-between text-xs"
-                style={{ background: "rgba(0,0,0,0.4)", border: "1px dashed var(--pt-6)", color: "var(--ink-3)" }}
-              >
-                <div className="flex items-center gap-2">
-                  <Clock size={13} className="text-ink-3" />
-                  <span className="font-cond">아직 운동 계획이 입력되지 않았습니다</span>
-                </div>
-                <span
-                  className="font-cond font-bold leading-none"
-                  style={{ fontSize: 9, color: "var(--ink-3)", background: "rgba(255,255,255,0.05)", padding: "4px 7px", borderRadius: 6 }}
-                >
-                  준비 중
-                </span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="font-cond text-ink-3 text-center" style={{ fontSize: 13, padding: "14px 0" }}>
-            예정된 수업이 없습니다
-          </p>
-        )}
-      </div>
-    </section>
   );
 }
 
