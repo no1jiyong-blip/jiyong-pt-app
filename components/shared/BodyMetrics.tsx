@@ -281,9 +281,6 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
   return (
     <div className="flex flex-col gap-7">
 
-      {/* ─── 0. 사진으로 기록하기 ─── */}
-      <InBodyPhotoCapture onSave={saveFromPhoto} onSaved={loadHistory} />
-
       {/* ─── 1. 체성분 종합 결론 (결론 우선 — 가장 먼저 노출) ─── */}
       <section className="flex flex-col gap-4">
         <SectionTitle title="체성분 종합 결론" />
@@ -480,6 +477,9 @@ export function BodyMetrics({ memberId, gender, age }: Props) {
           whr={latest.whr}
         />
       </section>
+
+      {/* ─── 5. 사진으로 기록하기 (+ 기존 수동 입력) — 조회 흐름 다음 가장 아래쪽 ─── */}
+      <InBodyPhotoCapture onSave={saveFromPhoto} onSaved={loadHistory} />
     </div>
   );
 }

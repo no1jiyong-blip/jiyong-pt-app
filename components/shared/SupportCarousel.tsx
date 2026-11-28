@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   LineChart,
@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import type { Session, ExerciseRecord } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, hapticTick } from "@/lib/utils";
 
 const VOLT = "#D3FF52";
 
@@ -276,8 +276,31 @@ function SupportRow({
   onToggle: () => void;
 }) {
   const [showAllLogs, setShowAllLogs] = useState(false);
+  const [activePoint, setActivePoint] = useState<ExerciseCard["data"][number] | null>(null);
+  const lastHapticKeyRef = useRef<string | null>(null);
   const unit = card.isReverse ? "pt" : "kg";
   const visibleLogs = showAllLogs ? card.logs : card.logs.slice(0, LOG_PREVIEW_COUNT);
+
+  const handleActiveMove = (state: {
+    isTooltipActive?: boolean;
+    activeLabel?: string | number;
+    activePayload?: { payload?: unknown }[];
+  }) => {
+    if (!state?.isTooltipActive) return;
+    const payload = state.activePayload?.[0]?.payload;
+    if (!payload || typeof payload !== "object") return;
+    const row = payload as ExerciseCard["data"][number];
+    setActivePoint(row);
+    const key = String(state.activeLabel ?? row.date);
+    if (lastHapticKeyRef.current !== key) {
+      lastHapticKeyRef.current = key;
+      hapticTick();
+    }
+  };
+  const handleLeave = () => {
+    setActivePoint(null);
+    lastHapticKeyRef.current = null;
+  };
 
   return (
     <div
@@ -325,27 +348,43 @@ function SupportRow({
             </p>
           )}
 
-          {/* 시작 → 현재 + 스파크라인 — 하나의 카드로 묶어 테두리 중첩 최소화 */}
+          {/* 시작 → 현재 + 스파크라인 — 하나의 카드로 묶어 테두리 중첩 최소화. 터치 중엔 상단 요약이 해당 지점으로 전환(손가락에 가리지 않음) */}
           <div className="rounded-2xl p-3" style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--pt-5)" }}>
-            <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
-              <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
-              <span className="text-ink-4 text-[11px]">➔</span>
-              <span className="font-mono-num font-extrabold text-ink-0 tabular-nums" style={{ fontSize: 15 }}>
-                {card.current}{unit}
-              </span>
-              {card.streak >= 2 && (
-                <span className="text-[10px] font-cond font-bold text-ink-3 ml-auto">
-                  {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
+            {activePoint ? (
+              <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
+                <span className="text-[11px] text-ink-4 font-cond tabular-nums">{activePoint.date}</span>
+                <span className="font-mono-num font-bold text-ink-2 tabular-nums" style={{ fontSize: 12 }}>
+                  {activePoint.actualWeight}{card.isReverse ? "kg 보조" : "kg"} × {activePoint.reps}회
                 </span>
-              )}
-            </div>
+                <span className="font-mono-num font-extrabold tabular-nums ml-auto" style={{ fontSize: 15, color: VOLT }}>
+                  {Math.round(activePoint.val)}{unit}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
+                <span className="text-[11px] text-ink-4 font-cond">시작 {card.start}{unit}</span>
+                <span className="text-ink-4 text-[11px]">➔</span>
+                <span className="font-mono-num font-extrabold text-ink-0 tabular-nums" style={{ fontSize: 15 }}>
+                  {card.current}{unit}
+                </span>
+                {card.streak >= 2 && (
+                  <span className="text-[10px] font-cond font-bold text-ink-3 ml-auto">
+                    {card.streak}회 연속 {card.isReverse ? "강도 향상" : "증량"}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="w-full" style={{ height: 88 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={card.data} margin={{ top: 10, right: 10, left: 10, bottom: 2 }}>
-                  <Tooltip
-                    content={(props) => <SparkTooltip {...props} isReverse={card.isReverse} />}
-                    cursor={{ stroke: VOLT, strokeOpacity: 0.25 }}
-                  />
+                <LineChart
+                  data={card.data}
+                  margin={{ top: 10, right: 10, left: 10, bottom: 2 }}
+                  onMouseMove={handleActiveMove}
+                  onMouseLeave={handleLeave}
+                  onTouchMove={handleActiveMove}
+                  onTouchEnd={handleLeave}
+                >
+                  <Tooltip content={() => null} cursor={{ stroke: VOLT, strokeOpacity: 0.25 }} />
                   <Line
                     type="monotone"
                     dataKey="val"
@@ -410,37 +449,3 @@ function SupportRow({
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   스파크라인 커스텀 툴팁 — 호버/터치 시 날짜·수행 중량×횟수·추정 1RM 표시
-   ═══════════════════════════════════════════════════════════════ */
-function SparkTooltip({
-  active,
-  payload,
-  isReverse,
-}: {
-  active?: boolean;
-  payload?: { payload?: { date: string; val: number; actualWeight: number; reps: number } }[];
-  isReverse: boolean;
-}) {
-  if (!active || !payload || payload.length === 0 || !payload[0].payload) return null;
-  const row = payload[0].payload;
-
-  return (
-    <div
-      className="rounded-xl px-3 py-2"
-      style={{
-        background: "rgba(10,10,10,0.95)",
-        border: "1px solid var(--pt-6)",
-        backdropFilter: "blur(12px)",
-      }}
-    >
-      <p className="text-[10px] font-cond font-bold text-ink-3 mb-1 leading-none">{row.date}</p>
-      <p className="text-xs font-mono-num font-bold text-ink-0 tabular-nums leading-none mb-1">
-        {row.actualWeight}kg{isReverse ? " 보조" : ""} × {row.reps}회
-      </p>
-      <p className="text-[11px] font-mono-num font-bold tabular-nums leading-none" style={{ color: VOLT }}>
-        {isReverse ? `점수 ${Math.round(row.val)}pt` : `추정 1RM ${Math.round(row.val)}kg`}
-      </p>
-    </div>
-  );
-}

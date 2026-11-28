@@ -64,3 +64,14 @@ export const MONTH_ABBR = [
 ];
 
 export const DAY_NAME_KO = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
+
+/** 짧은 햅틱 진동(지원 안 하는 브라우저/환경에서도 안전) — 그래프 활성 포인트 전환 등 미세 피드백용 */
+export function hapticTick(ms: number = 8) {
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(ms);
+    }
+  } catch {
+    // 진동 API 미지원 환경 — 무시
+  }
+}

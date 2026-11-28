@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ComposedChart,
   Line,
@@ -14,6 +14,7 @@ import {
 import { Trophy, Award } from "lucide-react";
 import type { Session, ExerciseRecord, BenchmarkData } from "@/lib/types";
 import { calcOneRM } from "@/lib/types";
+import { hapticTick } from "@/lib/utils";
 
 const VOLT = "#D3FF52";
 
@@ -205,95 +206,6 @@ export function HeroSBDChart({ sessions, recordsBySession, benchmarks, gender, o
   );
 }
 
-interface TooltipRow {
-  orm: number | null;
-  proj: number | null;
-  actualWeight: number | null;
-  reps: number | null;
-  isActual: boolean;
-}
-
-/** 회원 친화적 커스텀 툴팁 — 실측 1RM(1회 직접 수행) vs 공식 추정 vs 미래 예측을 구분해서 쉬운 말로 설명 */
-function ChartTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { dataKey?: string | number; value?: unknown; payload?: TooltipRow }[];
-  label?: string;
-}) {
-  if (!active || !payload || payload.length === 0) return null;
-  const entry =
-    payload.find((p) => p.dataKey === "orm" && p.value != null) ??
-    payload.find((p) => p.dataKey === "proj" && p.value != null);
-  if (!entry || entry.value == null || typeof entry.value !== "number" || !entry.payload) return null;
-  const value = entry.value;
-  const row = entry.payload;
-  const isProjected = entry.dataKey === "proj";
-  const isActual = !isProjected && row.isActual;
-
-  const badgeColor = isActual || isProjected ? VOLT : "var(--ink-3)";
-  const badgeLabel = isProjected ? "예측" : isActual ? "실측 1RM" : "공식 추정";
-
-  return (
-    <div
-      className="rounded-2xl px-4 py-3"
-      style={{
-        background: "rgba(10,10,10,0.95)",
-        border: "1px solid var(--pt-6)",
-        backdropFilter: "blur(12px)",
-        minWidth: 170,
-      }}
-    >
-      <div
-        className="flex items-center justify-between gap-2 pb-2 mb-2"
-        style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
-      >
-        <span className="text-xs font-cond font-bold text-ink-2">
-          {isProjected ? `성장 예측 (${label})` : `${label} 측정 세션`}
-        </span>
-        <span
-          className="text-[9px] font-cond font-bold px-1.5 py-0.5 rounded-full tracking-wider shrink-0"
-          style={{ background: `${badgeColor}1A`, color: badgeColor, border: `1px solid ${badgeColor}50` }}
-        >
-          {badgeLabel}
-        </span>
-      </div>
-
-      {/* 실제 수행 내용 (몇 kg으로 몇 회 했는지) */}
-      {!isProjected && row.actualWeight !== null && row.reps !== null && (
-        <div
-          className="mb-2 px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs"
-          style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.06)" }}
-        >
-          <span className="text-ink-3 font-cond font-semibold">실제 수행</span>
-          <span className="font-mono-num font-bold text-ink-0">
-            {row.actualWeight}kg × {row.reps}회
-          </span>
-        </div>
-      )}
-
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="text-xs font-cond font-semibold text-ink-3">
-          {isActual ? "실제 최대 근력" : isProjected ? "예상 도달 근력" : "추정 최대 근력"}
-        </span>
-        <span className="font-mono-num font-extrabold text-sm" style={{ color: badgeColor }}>
-          {value}
-          <span className="text-[10px] text-ink-0 ml-0.5">KG</span>
-        </span>
-      </div>
-      <p className="text-[9px] text-ink-4 leading-tight pt-1 text-right">
-        {isActual
-          ? "※ 1회 성공 기준 실측 기록"
-          : isProjected
-          ? "※ 현재 성장 추세 유지 시 예상치"
-          : "※ 해당 세션 최고 세트 기준 Brzycki 공식 추정"}
-      </p>
-    </div>
-  );
-}
-
 interface ChartItem {
   name: string;
   data: {
@@ -320,7 +232,54 @@ interface ChartItem {
   current: number;
 }
 
+type SBDRow = ChartItem["data"][number];
+
 function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) {
+  const [activeRow, setActiveRow] = useState<SBDRow | null>(null);
+  const lastHapticKeyRef = useRef<string | null>(null);
+
+  const handleActiveMove = (state: {
+    isTooltipActive?: boolean;
+    activeLabel?: string | number;
+    activePayload?: { payload?: unknown }[];
+  }) => {
+    if (!state?.isTooltipActive) return;
+    const payload = state.activePayload?.[0]?.payload;
+    if (!payload || typeof payload !== "object") return;
+    const row = payload as SBDRow;
+    setActiveRow(row);
+    const key = String(state.activeLabel ?? row.date);
+    if (lastHapticKeyRef.current !== key) {
+      lastHapticKeyRef.current = key;
+      hapticTick();
+    }
+  };
+  const handleLeave = () => {
+    setActiveRow(null);
+    lastHapticKeyRef.current = null;
+  };
+
+  const latestRaw = chart.rawPoints[chart.rawPoints.length - 1] ?? null;
+  const summary = activeRow
+    ? {
+        date: activeRow.date,
+        weight: activeRow.actualWeight,
+        reps: activeRow.reps,
+        value: activeRow.orm ?? activeRow.proj ?? null,
+        isProjected: activeRow.orm == null && activeRow.proj != null,
+        isActual: activeRow.isActual,
+      }
+    : latestRaw
+    ? {
+        date: latestRaw.date,
+        weight: latestRaw.actualWeight,
+        reps: latestRaw.reps,
+        value: latestRaw.orm as number | null,
+        isProjected: false,
+        isActual: latestRaw.isActual,
+      }
+    : null;
+
   const body = (
     <>
       {!bare && (
@@ -340,9 +299,38 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
         </div>
       )}
 
+      {/* 상단 고정 요약 — 터치/호버 지점을 손가락에 가리지 않는 위치에 표시 (기본값은 최신 기록) */}
+      {summary && summary.value != null && (
+        <div className="flex items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,0.03)" }}>
+          <span className="text-[11px] font-cond font-semibold text-ink-3 tabular-nums">
+            {summary.isProjected ? `예측 · ${summary.date}` : summary.date}
+          </span>
+          <div className="flex items-center gap-2">
+            {!summary.isProjected && summary.weight != null && summary.reps != null && (
+              <span className="text-[11px] font-mono-num font-bold text-ink-2 tabular-nums">
+                {summary.weight}kg × {summary.reps}회
+              </span>
+            )}
+            <span className="text-[9px] font-cond font-bold text-ink-4">
+              {summary.isProjected ? "예측" : summary.isActual ? "실측" : "추정"}
+            </span>
+            <span className="text-sm font-mono-num font-extrabold tabular-nums" style={{ color: VOLT }}>
+              {summary.value}kg
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* 차트 — 면 채우기 없이 라인 중심, 현재 지점만 얇은 링으로 강조 */}
       <ResponsiveContainer width="100%" height={bare ? 220 : 180}>
-        <ComposedChart data={chart.data} margin={{ top: 12, right: 8, left: -14, bottom: 0 }}>
+        <ComposedChart
+          data={chart.data}
+          margin={{ top: 12, right: 8, left: -14, bottom: 0 }}
+          onMouseMove={handleActiveMove}
+          onMouseLeave={handleLeave}
+          onTouchMove={handleActiveMove}
+          onTouchEnd={handleLeave}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
           <XAxis
             dataKey="date"
@@ -359,10 +347,7 @@ function SBDCard({ chart, bare = false }: { chart: ChartItem; bare?: boolean }) 
             width={32}
             tickFormatter={(v: number) => `${Math.round(v)}`}
           />
-          <Tooltip
-            content={(props) => <ChartTooltip {...props} />}
-            cursor={{ stroke: VOLT, strokeOpacity: 0.25 }}
-          />
+          <Tooltip content={() => null} cursor={{ stroke: VOLT, strokeOpacity: 0.25 }} />
           {chart.ghostKg && (
             <ReferenceLine
               y={chart.ghostKg}
